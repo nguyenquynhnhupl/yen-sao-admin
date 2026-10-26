@@ -101,14 +101,14 @@ export function Homepage() {
   }
 
   async function moveSection(section: HomepageSection, direction: -1 | 1) {
-    const ordered = [...sections].sort((a, b) => a.sort_order - b.sort_order)
+    const ordered = sections.filter(item => !['announcement', 'site_header'].includes(item.section_key)).sort((a, b) => a.sort_order - b.sort_order)
     const index = ordered.findIndex(item => item.id === section.id)
     const targetIndex = index + direction
     if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return
     const next = [...ordered]
     ;[next[index], next[targetIndex]] = [next[targetIndex], next[index]]
-    const normalized = next.map((item, i) => ({ ...item, sort_order: i + 1 }))
-    setSections(normalized)
+    const normalized = next.map((item, i) => ({ ...item, sort_order: i + 3 }))
+    setSections(current => current.map(item => normalized.find(updated => updated.id === item.id) ?? item))
     setError('')
     try {
       const client = requireSupabase()
@@ -155,7 +155,7 @@ export function Homepage() {
       </div>
     ) : (
       <div className="homepage-sections">
-        {[...sections].sort((a, b) => a.sort_order - b.sort_order).map((section, index, ordered) => {
+        {sections.filter(section => !['announcement', 'site_header'].includes(section.section_key)).sort((a, b) => a.sort_order - b.sort_order).map((section, index, ordered) => {
           const itemList = section.item_type === 'category'
             ? categories.filter(item => item.is_active)
             : section.item_type === 'product'
