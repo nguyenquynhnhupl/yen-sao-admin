@@ -4,7 +4,7 @@ Dự án React + TypeScript + Vite riêng cho giao diện quản trị. Website 
 
 ## Chức năng hiện có
 - Đăng nhập Supabase Auth và kiểm tra quyền trong `admin_users`.
-- Dashboard thống kê sản phẩm, danh mục, bài viết và đơn hàng.
+- Dashboard thống kê sản phẩm, danh mục, bài viết và đơn hàng.\n- Quản lý Trang chủ: bật/tắt và sắp xếp các khu vực; chỉnh tiêu đề, mô tả, ảnh và nút; chọn danh mục/sản phẩm từ Master Data.
 - CRUD sản phẩm (giá, ảnh URL, danh mục, tồn kho, xuất bản).
 - Thêm/ẩn/xóa danh mục.
 - Thêm/bật/tắt/xóa banner.
@@ -28,22 +28,22 @@ Hiện website cũ mới dùng mockup, nên CMS chưa có database thật. Tạo
 1. Trong Supabase, mở **SQL Editor**.
 2. Chạy toàn bộ file `supabase/migrations/001_admin_cms_schema.sql`.
 3. Vào **Project Settings → API** (hoặc Connect), lấy Project URL và publishable/anon key.
-4. Sao chép `.env.example` thành `.env` trong folder này và điền:
+5. Sao chép `.env.example` thành `.env` trong folder này và điền:
 
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
 ```
 
-5. Trong Supabase **Authentication → Users**, tạo user quản trị bằng email và mật khẩu.
-6. Sao chép UUID của user vừa tạo. Trong SQL Editor, chạy câu lệnh sau và thay UUID thật:
+6. Trong Supabase **Authentication → Users**, tạo user quản trị bằng email và mật khẩu.
+7. Sao chép UUID của user vừa tạo. Trong SQL Editor, chạy câu lệnh sau và thay UUID thật:
 
 ```sql
 insert into public.admin_users (user_id)
 values ('UUID_CUA_USER_ADMIN');
 ```
 
-7. Khởi động lại `npm run dev`, sau đó đăng nhập tại `http://localhost:5174`.
+8. Khởi động lại `npm run dev`, sau đó đăng nhập tại `http://localhost:5174`.
 
 **Không đặt service-role/secret key trong biến `VITE_*` hoặc trong frontend.** Chỉ dùng publishable/anon key ở trình duyệt; RLS sẽ giới hạn quyền truy cập.
 
@@ -52,10 +52,10 @@ Cả hai app cần dùng cùng `VITE_SUPABASE_URL` và publishable/anon key. Khi
 
 Code website mockup hiện tại chưa tự chuyển sang dữ liệu Supabase chỉ bằng việc tạo CMS. Cần cập nhật từng hook/component lấy dữ liệu mockup trong dự án Website để truy vấn các bảng tương ứng, đồng thời map lại tên trường theo UI hiện tại.
 
-## 4. Ảnh sản phẩm/banner
+## 4. Quản lý Trang chủ\nTrang **Admin → Trang chủ** đọc cấu hình từ bảng `homepage_sections`. Migration `002_homepage_sections.sql` tạo sẵn các khu vực theo trang chủ hiện tại. Các mục Danh mục và Sản phẩm chỉ lưu danh sách ID tham chiếu đến Master Data; thông tin sản phẩm/danh mục không bị sao chép. Sau khi cấu hình trong Admin, website khách hàng cũng cần được cập nhật để đọc `homepage_sections` và render theo `section_key`; migration và Admin CMS tự chúng chưa thay đổi giao diện website khách hàng.\n\n## 5. Ảnh sản phẩm/banner
 Phiên bản starter nhận URL ảnh. Có thể dùng URL ảnh công khai trước; nên bổ sung Supabase Storage bucket và policy upload sau khi chốt yêu cầu quản lý file.
 
-## 5. Triển khai 2 địa chỉ riêng
+## 6. Triển khai 2 địa chỉ riêng
 - Website: deploy project Website như hiện tại.
 - Admin: deploy folder này thành một project frontend riêng trên Vercel/Netlify.
 - Có thể dùng `admin.tenmiencuaban.vn` cho CMS và `tenmiencuaban.vn` cho Website.
