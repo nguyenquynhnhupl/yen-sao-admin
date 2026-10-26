@@ -30,3 +30,5 @@
 .homepage-section-footer{display:flex;justify-content:flex-end;gap:9px;padding:14px 20px;border-top:1px solid #edf1ed;background:#fcfdfb}
 .homepage-section-footer .secondary,.homepage-section-footer .primary{font-size:11px}
 @media(max-width:720px){.homepage-section-head{padding:13px;gap:8px;flex-wrap:wrap}.homepage-section-title{min-width:calc(100% - 110px)}.homepage-section-head>.pill{margin-left:44px}.homepage-order-actions{margin-left:auto}.homepage-form{padding:15px 13px 0}.homepage-item-picker{margin:0 13px 14px}.homepage-item-list{grid-template-columns:1fr}.homepage-section-footer{padding:12px;flex-wrap:wrap}.homepage-section-footer button{flex:1}}
+
+.homepage-image-upload{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-top:2px}.homepage-image-preview{width:180px;height:100px;object-fit:contain;border:1px solid #e3eae3;border-radius:8px;background:#f8faf8}.homepage-upload-button{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #dce5dc;border-radius:7px;cursor:pointer;font-size:11px}.homepage-upload-button input{display:none}.homepage-image-upload>small{flex-basis:100%;font-size:10px;line-height:1.5}
