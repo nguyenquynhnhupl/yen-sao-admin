@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowDown, ArrowUp, Eye, EyeOff, Image as ImageIcon, Package, Save, Tags } from 'lucide-react'
+import { ArrowDown, ArrowUp, Eye, EyeOff, Image as ImageIcon, Package, Save, Tags, Upload } from 'lucide-react'
 import { requireSupabase } from './lib/supabase'
 import type { Category, Product } from './types'
 
@@ -37,6 +37,7 @@ export function Homepage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -72,6 +73,26 @@ export function Homepage() {
     setSections(current => current.map(section => section.id === id ? { ...section, ...patch } : section))
   }
 
+  async function uploadSectionImage(section: HomepageSection, file?: File) {
+    if (!file) return
+    setError('')
+    setNotice('')
+    if (!file.type.startsWith('image/')) { setError('Vui lòng chọn tệp hình ảnh.'); return }
+    if (file.size > 5 * 1024 * 1024) { setError('Ảnh vượt quá 5 MB. Vui lòng chọn ảnh nhỏ hơn.'); return }
+    setUploadingId(section.id)
+    try {
+      const client = requireSupabase()
+      const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+      const path = `${section.section_key}/${Date.now()}.${extension}`
+      const { error: uploadError } = await client.storage.from('homepage-images').upload(path, file, { contentType: file.type, upsert: false })
+      if (uploadError) throw uploadError
+      const { data } = client.storage.from('homepage-images').getPublicUrl(path)
+      updateSection(section.id, { image_url: data.publicUrl })
+      setNotice('Đã tải ảnh lên. Nhấn “Lưu khu vực” để lưu URL ảnh vào cấu hình.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không tải được ảnh lên. Hãy kiểm tra cấu hình Storage.')
+    } finally { setUploadingId(null) }
+  }
   async function saveSection(section: HomepageSection) {
     setSavingId(section.id)
     setError('')
@@ -181,6 +202,14 @@ export function Homepage() {
               <label>Tiêu đề phụ<input value={section.subtitle ?? ''} onChange={e => updateSection(section.id, { subtitle: e.target.value })} placeholder="Tiêu đề phụ (nếu có)"/></label>
               <label className="span-2">Nội dung / mô tả<textarea rows={2} value={section.description ?? ''} onChange={e => updateSection(section.id, { description: e.target.value })} placeholder="Nội dung hiển thị trên website"/></label>
               <label className="span-2">URL hình ảnh<input type="url" value={section.image_url ?? ''} onChange={e => updateSection(section.id, { image_url: e.target.value })} placeholder="https://…"/></label>
+              <div className="span-2 homepage-image-upload">
+                {section.image_url && <img className="homepage-image-preview" src={section.image_url} alt="Xem trước hình ảnh" onError={e => { e.currentTarget.style.display = 'none' }} />}
+                <label className="secondary homepage-upload-button">
+                  <Upload size={15}/>{uploadingId === section.id ? 'Đang tải ảnh…' : 'Tải ảnh từ máy tính'}
+                  <input type="file" accept="image/*" disabled={uploadingId === section.id} onChange={e => { void uploadSectionImage(section, e.target.files?.[0]); e.currentTarget.value = '' }} />
+                </label>
+                <small className="muted">Có thể dán URL như trước hoặc chọn ảnh từ máy tính (tối đa 5 MB). Ảnh tải lên sẽ lưu trong Supabase Storage.</small>
+              </div>
               <label>Nhãn nút<input value={section.button_text ?? ''} onChange={e => updateSection(section.id, { button_text: e.target.value })} placeholder="Ví dụ: Khám phá sản phẩm"/></label>
               <label>Liên kết nút<input value={section.button_url ?? ''} onChange={e => updateSection(section.id, { button_url: e.target.value })} placeholder="/products hoặc URL"/></label>
             </div>
