@@ -131,14 +131,351 @@ function Products() {
       {message&&<div className="notice error">{message}</div>}<div className="modal-actions"><button type="button" className="secondary" onClick={()=>setModal(false)}>Hủy</button><button className="primary" disabled={saving}>{saving?'Đang lưu…':'Lưu sản phẩm'}</button></div></form></div>}
   </>
 }
+
+
+
+
 function Categories() {
-  const {rows,loading,error,refresh}=useTable<Category>('categories')
-  const [name,setName]=useState(''),[busy,setBusy]=useState(false)
-  async function add(e:FormEvent){e.preventDefault();setBusy(true);try{const {error:e}=await requireSupabase().from('categories').insert({name:name.trim(),slug:slugify(name),is_active:true});if(e)throw e;setName('');await refresh()}catch(e){alert(e instanceof Error?e.message:'Không lưu được danh mục.')}finally{setBusy(false)}}
-  async function toggle(c:Category){const {error:e}=await requireSupabase().from('categories').update({is_active:!c.is_active}).eq('id',c.id);if(e)alert(e.message);else refresh()}
-  async function remove(c:Category){if(!confirm(`Xóa danh mục "${c.name}"?`))return;const {error:e}=await requireSupabase().from('categories').delete().eq('id',c.id);if(e)alert(e.message);else refresh()}
-  return <><PageHeading title="Danh mục" description="Sắp xếp sản phẩm theo nhóm danh mục."/><form className="inline-create content-card" onSubmit={add}><label>Tên danh mục mới<input required value={name} onChange={e=>setName(e.target.value)} placeholder="Ví dụ: Yến chưng sẵn"/></label><button className="primary" disabled={busy}>{busy?'Đang thêm…':'＋ Thêm danh mục'}</button></form>{error&&<div className="notice error">{error}</div>}<div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>TÊN DANH MỤC</th><th>SLUG</th><th>TRẠNG THÁI</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>{loading?<tr><td colSpan={4} className="empty">Đang tải…</td></tr>:rows.length===0?<tr><td colSpan={4} className="empty">Chưa có danh mục.</td></tr>:rows.map(c=><tr key={c.id}><td><b>{c.name}</b></td><td className="muted">{c.slug}</td><td><span className={`pill ${c.is_active?'pill-green':'pill-gray'}`}>{c.is_active?'Đang hoạt động':'Đã ẩn'}</span></td><td><div className="row-actions"><button className="text-btn" onClick={()=>toggle(c)}>{c.is_active?'Ẩn':'Hiện'}</button><button className="text-btn danger-text" onClick={()=>remove(c)}>Xóa</button></div></td></tr>)}</tbody></table></div></div></>
+  const { rows, loading, error, refresh } = useTable<Category>('categories')
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+
+  const sortedRows = [...rows].sort(
+    (a, b) =>
+      (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
+      a.name.localeCompare(b.name, 'vi')
+  )
+
+  async function add(e: FormEvent) {
+    e.preventDefault()
+    const trimmedName = name.trim()
+    if (!trimmedName) return
+
+    setBusy(true)
+    try {
+      const nextOrder =
+        rows.length > 0
+          ? Math.max(...rows.map(c => Number(c.sort_order) || 0)) + 1
+          : 1
+
+      const { error: insertError } = await requireSupabase()
+        .from('categories')
+        .insert({
+          name: trimmedName,
+          slug: slugify(trimmedName),
+          is_active: true,
+          sort_order: nextOrder
+        })
+
+      if (insertError) throw insertError
+
+      setName('')
+      await refresh()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Không lưu được danh mục.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function startEdit(c: Category) {
+    setEditingId(c.id)
+    setEditName(c.name)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditName('')
+  }
+
+  async function saveEdit(c: Category) {
+    const trimmedName = editName.trim()
+
+    if (!trimmedName) {
+      alert('Vui lòng nhập tên danh mục.')
+      return
+    }
+
+    setBusy(true)
+    try {
+      const { error: updateError } = await requireSupabase()
+        .from('categories')
+        .update({
+          name: trimmedName,
+          slug: slugify(trimmedName)
+        })
+        .eq('id', c.id)
+
+      if (updateError) throw updateError
+
+      cancelEdit()
+      await refresh()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Không cập nhật được danh mục.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function reorder(draggedId: string, targetId: string) {
+    if (
+      draggedId === targetId ||
+      busy ||
+      editingId !== null
+    ) return
+
+    const newRows = [...sortedRows]
+    const fromIndex = newRows.findIndex(c => c.id === draggedId)
+    const toIndex = newRows.findIndex(c => c.id === targetId)
+
+    if (fromIndex < 0 || toIndex < 0) return
+
+    const [moved] = newRows.splice(fromIndex, 1)
+    newRows.splice(toIndex, 0, moved)
+
+    setBusy(true)
+    try {
+      const supabase = requireSupabase()
+      const results = await Promise.all(
+        newRows.map((c, index) =>
+          supabase
+            .from('categories')
+            .update({ sort_order: index + 1 })
+            .eq('id', c.id)
+        )
+      )
+
+      const failed = results.find(result => result.error)
+      if (failed?.error) throw failed.error
+
+      await refresh()
+    } catch (err) {
+      alert(
+        err instanceof Error
+          ? `Không lưu được thứ tự: ${err.message}`
+          : 'Không lưu được thứ tự danh mục.'
+      )
+      await refresh()
+    } finally {
+      setBusy(false)
+      setDraggingId(null)
+    }
+  }
+
+  async function toggle(c: Category) {
+    setBusy(true)
+    try {
+      const { error: updateError } = await requireSupabase()
+        .from('categories')
+        .update({ is_active: !c.is_active })
+        .eq('id', c.id)
+
+      if (updateError) throw updateError
+      await refresh()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Không cập nhật được trạng thái.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(c: Category) {
+    if (!confirm(`Xóa danh mục "${c.name}"?`)) return
+
+    setBusy(true)
+    try {
+      const { error: deleteError } = await requireSupabase()
+        .from('categories')
+        .delete()
+        .eq('id', c.id)
+
+      if (deleteError) throw deleteError
+      await refresh()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Không xóa được danh mục.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <PageHeading
+        title="Danh mục"
+        description="Kéo thả danh mục để thay đổi thứ tự hiển thị."
+      />
+
+      <form className="inline-create content-card" onSubmit={add}>
+        <label>
+          Tên danh mục mới
+          <input
+            required
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Ví dụ: Yến chưng sẵn"
+          />
+        </label>
+
+        <button className="primary" disabled={busy}>
+          {busy ? 'Đang xử lý…' : '＋ Thêm danh mục'}
+        </button>
+      </form>
+
+      {error && <div className="notice error">{error}</div>}
+
+      <div className="content-card table-card">
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>THỨ TỰ</th>
+                <th>TÊN DANH MỤC</th>
+                <th>SLUG</th>
+                <th>TRẠNG THÁI</th>
+                <th className="align-right">THAO TÁC</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="empty">Đang tải…</td>
+                </tr>
+              ) : sortedRows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="empty">Chưa có danh mục.</td>
+                </tr>
+              ) : (
+                sortedRows.map((c, index) => (
+                  <tr
+                    key={c.id}
+                    draggable={!busy && editingId === null}
+                    onDragStart={e => {
+                      if (busy || editingId !== null) {
+                        e.preventDefault()
+                        return
+                      }
+
+                      setDraggingId(c.id)
+                      e.dataTransfer.effectAllowed = 'move'
+                      e.dataTransfer.setData('text/plain', c.id)
+                    }}
+                    onDragOver={e => {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                    }}
+                    onDrop={e => {
+                      e.preventDefault()
+                      const id = e.dataTransfer.getData('text/plain') || draggingId
+                      if (id) void reorder(id, c.id)
+                    }}
+                    onDragEnd={() => setDraggingId(null)}
+                    style={{
+                      cursor: busy || editingId !== null ? 'default' : 'grab',
+                      opacity: draggingId === c.id ? 0.45 : 1
+                    }}
+                  >
+                    <td>
+                      <span title="Kéo dòng này để đổi thứ tự">
+                        ⠿ {index + 1}
+                      </span>
+                    </td>
+
+                    <td>
+                      {editingId === c.id ? (
+                        <input
+                          required
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          autoFocus
+                        />
+                      ) : (
+                        <b>{c.name}</b>
+                      )}
+                    </td>
+
+                    <td className="muted">{c.slug}</td>
+
+                    <td>
+                      <span
+                        className={`pill ${
+                          c.is_active ? 'pill-green' : 'pill-gray'
+                        }`}
+                      >
+                        {c.is_active ? 'Đang hoạt động' : 'Đã ẩn'}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="row-actions">
+                        {editingId === c.id ? (
+                          <>
+                            <button
+                              type="button"
+                              className="text-btn"
+                              disabled={busy}
+                              onClick={() => saveEdit(c)}
+                            >
+                              {busy ? 'Đang lưu…' : 'Lưu'}
+                            </button>
+                            <button
+                              type="button"
+                              className="text-btn"
+                              disabled={busy}
+                              onClick={cancelEdit}
+                            >
+                              Hủy
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="text-btn"
+                              disabled={busy}
+                              onClick={() => startEdit(c)}
+                            >
+                              Sửa
+                            </button>
+                            <button
+                              type="button"
+                              className="text-btn"
+                              disabled={busy}
+                              onClick={() => toggle(c)}
+                            >
+                              {c.is_active ? 'Ẩn' : 'Hiện'}
+                            </button>
+                            <button
+                              type="button"
+                              className="text-btn danger-text"
+                              disabled={busy}
+                              onClick={() => remove(c)}
+                            >
+                              Xóa
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  )
 }
+
+
+
+
+
+
 function Banners() {
   const {rows,loading,error,refresh}=useTable<Banner>('banners')
   const [title,setTitle]=useState(''),[image,setImage]=useState(''),[link,setLink]=useState(''),[position,setPosition]=useState('home_hero'),[busy,setBusy]=useState(false)
