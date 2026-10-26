@@ -1,19 +1,21 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChartNoAxesCombined, Image, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, Tags, X } from 'lucide-react'
+import { Activity, BookOpen, ChartNoAxesCombined, Image, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, Tags, X, House } from 'lucide-react'
 import { isSupabaseConfigured, requireSupabase, supabase } from './lib/supabase'
 import type { Article, Banner, Category, Order, Product } from './types'
+import { Homepage } from './Homepage'
 
-type Section = 'dashboard' | 'products' | 'categories' | 'banners' | 'articles' | 'orders'
+type Section = 'dashboard' | 'homepage' | 'products' | 'categories' | 'banners' | 'articles' | 'orders'
 const nav: { id: Section; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
+  { id: 'homepage', label: 'Trang chủ', icon: House },
   { id: 'products', label: 'Sản phẩm', icon: Package },
   { id: 'categories', label: 'Danh mục', icon: Tags },
   { id: 'banners', label: 'Banner', icon: Image },
   { id: 'articles', label: 'Bài viết', icon: BookOpen },
   { id: 'orders', label: 'Đơn hàng', icon: ShoppingCart },
 ]
-const sectionTitles: Record<Section, string> = { dashboard: 'Tổng quan', products: 'Sản phẩm', categories: 'Danh mục', banners: 'Banner', articles: 'Bài viết', orders: 'Đơn hàng' }
+const sectionTitles: Record<Section, string> = { dashboard: 'Tổng quan', homepage: 'Trang chủ', products: 'Sản phẩm', categories: 'Danh mục', banners: 'Banner', articles: 'Bài viết', orders: 'Đơn hàng' }
 
 function Login({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('')
@@ -73,6 +75,7 @@ function App() {
       <header className="topbar"><button className="icon-btn menu-toggle" onClick={() => setMobileNav(true)}><Menu size={20}/></button><div><span className="breadcrumb">Admin CMS / </span><strong>{sectionTitles[current]}</strong></div><div className="topbar-right"><span className="status-dot"/><span>Quản trị viên</span><div className="avatar">A</div></div></header>
       <div className="page-content"><Routes>
         <Route path="/" element={<Dashboard/>}/>
+        <Route path="/homepage" element={<Homepage/>}/>
         <Route path="/products" element={<Products/>}/>
         <Route path="/categories" element={<Categories/>}/>
         <Route path="/banners" element={<Banners/>}/>
