@@ -32,3 +32,18 @@
 @media(max-width:720px){.homepage-section-head{padding:13px;gap:8px;flex-wrap:wrap}.homepage-section-title{min-width:calc(100% - 110px)}.homepage-section-head>.pill{margin-left:44px}.homepage-order-actions{margin-left:auto}.homepage-form{padding:15px 13px 0}.homepage-item-picker{margin:0 13px 14px}.homepage-item-list{grid-template-columns:1fr}.homepage-section-footer{padding:12px;flex-wrap:wrap}.homepage-section-footer button{flex:1}}
 
 .homepage-image-upload{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-top:2px}.homepage-image-preview{width:180px;height:100px;object-fit:contain;border:1px solid #e3eae3;border-radius:8px;background:#f8faf8}.homepage-upload-button{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #dce5dc;border-radius:7px;cursor:pointer;font-size:11px}.homepage-upload-button input{display:none}.homepage-image-upload>small{flex-basis:100%;font-size:10px;line-height:1.5}
+
+
+/* Structured items for the benefits_stats homepage section */
+.benefit-items-editor{display:flex;flex-direction:column;gap:12px}
+.benefit-items-heading{display:flex;flex-direction:column;gap:4px}
+.benefit-item-card{border:1px solid #dfe7df;border-radius:10px;padding:13px;background:#fbfcfa}
+.benefit-item-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.benefit-item-number{font-size:12px;font-weight:700;color:#3c6347}
+.benefit-item-actions{display:flex;gap:5px}
+.benefit-item-fields{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(200px,1.2fr);gap:12px}
+.benefit-item-fields .span-2{grid-column:1/-1}
+.benefit-item-fields label{display:flex;flex-direction:column;gap:6px}
+.benefit-icon-preview{display:inline-flex;align-items:center;color:#47714f}
+.benefit-add-button{align-self:flex-start;display:inline-flex;align-items:center;gap:7px}
+@media(max-width:640px){.benefit-item-fields{grid-template-columns:1fr}.benefit-item-fields .span-2{grid-column:auto}}
