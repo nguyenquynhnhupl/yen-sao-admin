@@ -1,9 +1,32 @@
 import { useEffect, useState } from 'react'
-import { ArrowDown, ArrowUp, Eye, EyeOff, Image as ImageIcon, Package, Save, Tags, Upload } from 'lucide-react'
+import { ArrowDown, ArrowUp, Eye, EyeOff, Image as ImageIcon, Package, Save, Tags, Upload, Plus, Trash2, Heart, Sparkles, ShieldCheck, Leaf, Brain, Activity, Droplets, Moon, Baby } from 'lucide-react'
 import { requireSupabase } from './lib/supabase'
 import type { Category, Product } from './types'
 
 type ItemType = 'none' | 'category' | 'product'
+type BenefitItem = { id: string; icon: string; title: string; description: string }
+const benefitIcons = [
+  { value: 'Heart', label: 'Trái tim', Icon: Heart },
+  { value: 'Sparkles', label: 'Lấp lánh', Icon: Sparkles },
+  { value: 'ShieldCheck', label: 'Khiên bảo vệ', Icon: ShieldCheck },
+  { value: 'Leaf', label: 'Lá cây', Icon: Leaf },
+  { value: 'Brain', label: 'Não bộ', Icon: Brain },
+  { value: 'Activity', label: 'Sức khỏe', Icon: Activity },
+  { value: 'Droplets', label: 'Giọt nước', Icon: Droplets },
+  { value: 'Moon', label: 'Giấc ngủ', Icon: Moon },
+  { value: 'Baby', label: 'Trẻ nhỏ', Icon: Baby },
+]
+function parseBenefitItems(value: string | null | undefined): BenefitItem[] {
+  if (!value) return []
+  try {
+    const parsed = JSON.parse(value)
+    if (Array.isArray(parsed)) return parsed.filter((item) => item && typeof item === 'object').map((item, index) => ({
+      id: String(item.id ?? 'benefit-' + index), icon: String(item.icon ?? 'Heart'),
+      title: String(item.title ?? ''), description: String(item.description ?? ''),
+    }))
+  } catch { /* Existing plain-text description is supported until converted. */ }
+  return []
+}
 type HomepageSection = {
   id: string
   section_key: string
@@ -144,6 +167,10 @@ export function Homepage() {
     }
   }
 
+  function updateBenefitItems(section: HomepageSection, items: BenefitItem[]) {
+    updateSection(section.id, { description: JSON.stringify(items) })
+  }
+
   function toggleItem(section: HomepageSection, id: string) {
     const exists = section.item_ids.includes(id)
     const item_ids = exists
@@ -200,7 +227,27 @@ export function Homepage() {
             <div className="form-grid homepage-form">
               <label>Tiêu đề<input value={section.title ?? ''} onChange={e => updateSection(section.id, { title: e.target.value })} placeholder="Tiêu đề khu vực"/></label>
               <label>Tiêu đề phụ<input value={section.subtitle ?? ''} onChange={e => updateSection(section.id, { subtitle: e.target.value })} placeholder="Tiêu đề phụ (nếu có)"/></label>
-              <label className="span-2">Nội dung / mô tả<textarea rows={2} value={section.description ?? ''} onChange={e => updateSection(section.id, { description: e.target.value })} placeholder="Nội dung hiển thị trên website"/></label>
+              {section.section_key === 'benefits_stats' ? <div className="span-2 benefit-items-editor">
+                <div className="benefit-items-heading"><b>Nội dung / mô tả — Danh sách lợi ích</b><small className="muted">Mỗi item có icon, nội dung và mô tả riêng.</small></div>
+                {parseBenefitItems(section.description).map((item, itemIndex, items) => {
+                  const selectedIcon = benefitIcons.find(option => option.value === item.icon) ?? benefitIcons[0]
+                  const BenefitIcon = selectedIcon.Icon
+                  const patchItem = (patch: Partial<BenefitItem>) => updateBenefitItems(section, items.map((current, index) => index === itemIndex ? { ...current, ...patch } : current))
+                  return <div className="benefit-item-card" key={item.id}>
+                    <div className="benefit-item-card-head"><span className="benefit-item-number">Lợi ích {itemIndex + 1}</span><div className="benefit-item-actions">
+                      <button type="button" className="icon-btn" title="Di chuyển lên" disabled={itemIndex === 0} onClick={() => updateBenefitItems(section, items.map((v, i) => i === itemIndex ? items[itemIndex - 1] : i === itemIndex - 1 ? items[itemIndex] : v))}><ArrowUp size={15}/></button>
+                      <button type="button" className="icon-btn" title="Di chuyển xuống" disabled={itemIndex === items.length - 1} onClick={() => updateBenefitItems(section, items.map((v, i) => i === itemIndex ? items[itemIndex + 1] : i === itemIndex + 1 ? items[itemIndex] : v))}><ArrowDown size={15}/></button>
+                      <button type="button" className="icon-btn danger" title="Xóa lợi ích" onClick={() => updateBenefitItems(section, items.filter((_, i) => i !== itemIndex))}><Trash2 size={15}/></button>
+                    </div></div>
+                    <div className="benefit-item-fields">
+                      <label>Icon <span className="benefit-icon-preview"><BenefitIcon size={18}/></span><select value={item.icon} onChange={e => patchItem({ icon: e.target.value })}>{benefitIcons.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                      <label>Nội dung<input value={item.title} onChange={e => patchItem({ title: e.target.value })} placeholder="Ví dụ: Hỗ trợ sức khỏe"/></label>
+                      <label className="span-2">Mô tả<textarea rows={2} value={item.description} onChange={e => patchItem({ description: e.target.value })} placeholder="Mô tả ngắn cho lợi ích này"/></label>
+                    </div>
+                  </div>
+                })}
+                <button type="button" className="secondary benefit-add-button" onClick={() => { const items = parseBenefitItems(section.description); updateBenefitItems(section, [...items, { id: 'benefit-' + Date.now(), icon: 'Heart', title: '', description: '' }]) }}><Plus size={15}/> Thêm lợi ích</button>
+              </div> : <label className="span-2">Nội dung / mô tả<textarea rows={2} value={section.description ?? ''} onChange={e => updateSection(section.id, { description: e.target.value })} placeholder="Nội dung hiển thị trên website"/></label>}
               <label className="span-2">URL hình ảnh<input type="url" value={section.image_url ?? ''} onChange={e => updateSection(section.id, { image_url: e.target.value })} placeholder="https://…"/></label>
               <div className="span-2 homepage-image-upload">
                 {section.image_url && <img className="homepage-image-preview" src={section.image_url} alt="Xem trước hình ảnh" onError={e => { e.currentTarget.style.display = 'none' }} />}
