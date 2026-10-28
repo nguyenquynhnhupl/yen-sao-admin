@@ -63,6 +63,7 @@ export function Homepage() {
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [openPickerId, setOpenPickerId] = useState<string | null>(null)
 
   async function refresh() {
     setLoading(true)
@@ -262,16 +263,31 @@ export function Homepage() {
             </div>
 
             {section.item_type !== 'none' && <div className="homepage-item-picker">
-              <div className="homepage-picker-title"><Icon size={17}/><b>{section.item_type === 'category' ? 'Chọn danh mục từ Master Data' : 'Chọn sản phẩm từ Master Data'}</b><span>{section.item_ids.length} đã chọn</span></div>
-              {itemList.length === 0 ? <p className="muted">Chưa có dữ liệu đang hoạt động/được xuất bản trong Master Data.</p> : (
+              <div className="homepage-picker-title"><Icon size={17}/><b>{section.item_type === 'category' ? 'Danh mục đã thêm vào khu vực' : 'Sản phẩm đã thêm vào khu vực'}</b><span>{section.item_ids.length} đã chọn</span></div>
+              {section.item_ids.length === 0 ? (
+                <p className="muted">Chưa có {section.item_type === 'product' ? 'sản phẩm' : 'danh mục'} nào được thêm vào khu vực này.</p>
+              ) : (
                 <div className="homepage-item-list">
-                  {itemList.map(item => <label className="homepage-item-option" key={item.id}>
-                    <input type="checkbox" checked={section.item_ids.includes(item.id)} onChange={() => toggleItem(section, item.id)}/>
+                  {itemList.filter(item => section.item_ids.includes(item.id)).map(item => <label className="homepage-item-option" key={item.id}>
+                    <input type="checkbox" checked={true} aria-label={`Bỏ ${item.name} khỏi khu vực`} onChange={() => toggleItem(section, item.id)}/>
                     {'image_url' in item && item.image_url ? <img src={item.image_url} alt=""/> : <span className="homepage-item-placeholder"><Icon size={16}/></span>}
                     <span><b>{item.name}</b><small>{section.item_type === 'product' ? `${Number((item as Product).price).toLocaleString('vi-VN')} đ` : (item as Category).slug}</small></span>
+                    <button type="button" className="icon-btn danger" title="Xóa khỏi khu vực" onClick={event => { event.preventDefault(); toggleItem(section, item.id) }}><Trash2 size={15}/></button>
                   </label>)}
                 </div>
               )}
+              <button type="button" className="secondary benefit-add-button" onClick={() => setOpenPickerId(current => current === section.id ? null : section.id)}>
+                <Plus size={15}/>{openPickerId === section.id ? 'Đóng danh sách' : section.item_type === 'product' ? 'Thêm sản phẩm' : 'Thêm danh mục'}
+              </button>
+              {openPickerId === section.id && <div className="homepage-item-list homepage-item-master-list">
+                {itemList.filter(item => !section.item_ids.includes(item.id)).length === 0 ? (
+                  <p className="muted">{itemList.length === 0 ? 'Chưa có dữ liệu đang hoạt động/được xuất bản trong Master Data.' : 'Đã thêm tất cả dữ liệu phù hợp vào khu vực này.'}</p>
+                ) : itemList.filter(item => !section.item_ids.includes(item.id)).map(item => <label className="homepage-item-option" key={item.id}>
+                  <input type="checkbox" checked={false} onChange={() => toggleItem(section, item.id)}/>
+                  {'image_url' in item && item.image_url ? <img src={item.image_url} alt=""/> : <span className="homepage-item-placeholder"><Icon size={16}/></span>}
+                  <span><b>{item.name}</b><small>{section.item_type === 'product' ? `${Number((item as Product).price).toLocaleString('vi-VN')} đ` : (item as Category).slug}</small></span>
+                </label>)}
+              </div>}
             </div>}
 
             <div className="homepage-section-footer">
