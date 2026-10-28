@@ -5,6 +5,7 @@ export type Category = {
   is_active: boolean;
   created_at?: string;
   sort_order: number;
+  image_url?: string | null;
 };
 
 export type Product = {
