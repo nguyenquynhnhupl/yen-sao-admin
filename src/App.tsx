@@ -141,9 +141,11 @@ function Products() {
 function Categories() {
   const { rows, loading, error, refresh } = useTable<Category>('categories')
   const [name, setName] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [editImageUrl, setEditImageUrl] = useState('')
   const [draggingId, setDraggingId] = useState<string | null>(null)
 
   const sortedRows = [...rows].sort(
@@ -170,12 +172,14 @@ function Categories() {
           name: trimmedName,
           slug: slugify(trimmedName),
           is_active: true,
+          image_url: imageUrl.trim() || null,
           sort_order: nextOrder
         })
 
       if (insertError) throw insertError
 
       setName('')
+      setImageUrl('')
       await refresh()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Không lưu được danh mục.')
@@ -187,11 +191,13 @@ function Categories() {
   function startEdit(c: Category) {
     setEditingId(c.id)
     setEditName(c.name)
+    setEditImageUrl(c.image_url ?? '')
   }
 
   function cancelEdit() {
     setEditingId(null)
     setEditName('')
+    setEditImageUrl('')
   }
 
   async function saveEdit(c: Category) {
@@ -208,7 +214,8 @@ function Categories() {
         .from('categories')
         .update({
           name: trimmedName,
-          slug: slugify(trimmedName)
+          slug: slugify(trimmedName),
+          image_url: editImageUrl.trim() || null
         })
         .eq('id', c.id)
 
@@ -321,6 +328,10 @@ function Categories() {
             placeholder="Ví dụ: Yến chưng sẵn"
           />
         </label>
+        <label>
+          Ảnh danh mục (URL)
+          <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Dán đường dẫn ảnh công khai (không bắt buộc)" />
+        </label>
 
         <button className="primary" disabled={busy}>
           {busy ? 'Đang xử lý…' : '＋ Thêm danh mục'}
@@ -336,6 +347,7 @@ function Categories() {
               <tr>
                 <th>THỨ TỰ</th>
                 <th>TÊN DANH MỤC</th>
+                <th>ẢNH</th>
                 <th>SLUG</th>
                 <th>TRẠNG THÁI</th>
                 <th className="align-right">THAO TÁC</th>
@@ -345,11 +357,11 @@ function Categories() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="empty">Đang tải…</td>
+                  <td colSpan={6} className="empty">Đang tải…</td>
                 </tr>
               ) : sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="empty">Chưa có danh mục.</td>
+                  <td colSpan={6} className="empty">Chưa có danh mục.</td>
                 </tr>
               ) : (
                 sortedRows.map((c, index) => (
@@ -400,6 +412,7 @@ function Categories() {
                       )}
                     </td>
 
+                    <td>{editingId === c.id ? <input value={editImageUrl} onChange={e => setEditImageUrl(e.target.value)} placeholder="URL ảnh danh mục" /> : c.image_url ? <img src={c.image_url} alt={c.name} style={{width:48,height:40,objectFit:'cover',borderRadius:8}} /> : <span className="muted">Chưa có ảnh</span>}</td>
                     <td className="muted">{c.slug}</td>
 
                     <td>
