@@ -28,8 +28,11 @@ create table if not exists public.categories (
   name text not null,
   slug text not null unique,
   is_active boolean not null default true,
+  image_url text,
   created_at timestamptz not null default now()
 );
+
+alter table public.categories add column if not exists image_url text;
 
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
