@@ -283,3 +283,12 @@
 .gallery-add-tile .image-upload-control{flex-direction:column;gap:7px;min-height:76px;min-width:76px;border:0;background:transparent;color:#80664b}
 .gallery-add-tile .image-upload-control:hover{background:#f5eadb}
 @media(max-width:560px){.main-product-image-preview,.main-image-placeholder{width:min(100%,280px);aspect-ratio:1/1;height:auto}.gallery-upload-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Dynamic quick product information editor */
+.quick-info-builder{margin:18px 0;padding:16px;border:1px solid #e5ebe4;border-radius:12px;background:#fbfcfa}
+.quick-info-row{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(220px,1.5fr) auto;align-items:start;gap:12px;padding:12px 0;border-bottom:1px solid #e8ede7}
+.quick-info-row:last-child{border-bottom:0}
+.quick-info-row label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:600;color:#435247;min-width:0}
+.quick-info-row textarea{resize:vertical;min-height:60px}
+@media(max-width:620px){.quick-info-row{grid-template-columns:1fr}.quick-info-row .text-btn{justify-self:start}}
