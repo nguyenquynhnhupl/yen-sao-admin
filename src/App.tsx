@@ -254,7 +254,7 @@ function ProductEditor() {
   if (loading) return <div className="loading">Đang tải thông tin sản phẩm…</div>
   return <>
     <div className="editor-breadcrumb"><span className="muted">Admin CMS /</span><Link className="editor-breadcrumb-link" to="/products">Sản phẩm</Link><span className="muted">/ {isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'}</span><button className="text-btn editor-back-link" type="button" onClick={()=>navigate('/products')}>← Quay lại danh sách</button></div>
-    <PageHeading title={isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'} description="Cập nhật thông tin sản phẩm hiển thị trên website." action={<span className={form.is_published ? 'pill pill-green' : 'pill pill-gray'}>{form.is_published ? 'Đang xuất bản' : 'Bản nháp'}</span>} />
+    <div className="product-detail-heading"><div><p className="eyebrow">QUẢN LÝ DANH MỤC SẢN PHẨM</p><h1>{isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'}</h1><p className="product-detail-subtitle">Quản lý thông tin, hình ảnh, giá bán và trạng thái hiển thị trên website.</p></div><span className={form.is_published ? 'pill pill-green' : 'pill pill-gray'}>{form.is_published ? '● Đang xuất bản' : '● Bản nháp'}</span></div>
     {error && <div className="notice error">{error}</div>}
     <form className="product-editor-layout" onSubmit={save}>
       <div className="product-editor-main">
