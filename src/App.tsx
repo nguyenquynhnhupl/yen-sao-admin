@@ -149,18 +149,68 @@ function slugify(s: string) { return s.toLowerCase().normalize('NFD').replace(/[
 function Products() {
   const navigate = useNavigate()
   const { rows, loading, error, refresh } = useTable<Product>('products')
+  const { rows: categories } = useTable<Category>('categories')
   const [search, setSearch] = useState('')
-  async function remove(item: Product) { if (!confirm(`Xóa sản phẩm "${item.name}"?`)) return; const {error:e}=await requireSupabase().from('products').delete().eq('id',item.id); if(e) alert(e.message); else refresh() }
-  const filtered = rows.filter(x => x.name.toLowerCase().includes(search.toLowerCase()))
-  return <><PageHeading title="Sản phẩm" description="Quản lý thông tin sản phẩm và chương trình khuyến mãi." action={<button className="primary" onClick={()=>navigate("/products/new")}><span>＋</span> Thêm sản phẩm</button>}/>
-    <div className="toolbar"><div className="searchbox"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm theo tên sản phẩm…"/></div><span className="muted small">{rows.length} sản phẩm</span></div>
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [visibilityFilter, setVisibilityFilter] = useState('all')
+  const [promotionFilter, setPromotionFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('updated')
+  async function remove(item: Product) {
+    if (!confirm(`Xóa sản phẩm "${item.name}"? Thao tác này không thể hoàn tác.`)) return
+    const { error: e } = await requireSupabase().from('products').delete().eq('id', item.id)
+    if (e) alert(e.message); else void refresh()
+  }
+  const now = Date.now()
+  const isPromotionActive = (x: Product) => Boolean(x.promotion_type && x.promotion_value != null && (!x.promotion_start_at || new Date(x.promotion_start_at).getTime() <= now) && (!x.promotion_end_at || new Date(x.promotion_end_at).getTime() >= now))
+  const filtered = rows.filter(x => {
+    const q = search.trim().toLowerCase()
+    const matchesSearch = !q || x.name.toLowerCase().includes(q) || (x.slug ?? '').toLowerCase().includes(q) || x.id.toLowerCase().includes(q)
+    const matchesCategory = categoryFilter === 'all' || x.category_id === categoryFilter
+    const matchesVisibility = visibilityFilter === 'all' || (visibilityFilter === 'visible' ? x.is_published : !x.is_published)
+    const matchesPromotion = promotionFilter === 'all' || (promotionFilter === 'active' ? isPromotionActive(x) : promotionFilter === 'flash' ? Boolean(x.is_flash_deal) : !x.promotion_type && !x.is_flash_deal)
+    return matchesSearch && matchesCategory && matchesVisibility && matchesPromotion
+  }).sort((a, b) => sortBy === 'price-asc' ? Number(a.price) - Number(b.price) : sortBy === 'price-desc' ? Number(b.price) - Number(a.price) : sortBy === 'stock' ? Number(a.stock) - Number(b.stock) : sortBy === 'name' ? a.name.localeCompare(b.name, 'vi') : new Date((b as Product & { updated_at?: string }).updated_at ?? b.created_at ?? 0).getTime() - new Date((a as Product & { updated_at?: string }).updated_at ?? a.created_at ?? 0).getTime())
+  const lowStock = rows.filter(x => Number(x.stock) > 0 && Number(x.stock) <= 5).length
+  const outOfStock = rows.filter(x => Number(x.stock) <= 0).length
+  const visibleCount = rows.filter(x => x.is_published).length
+  function formatPrice(value: number | string) { return `${Number(value || 0).toLocaleString('vi-VN')}đ` }
+  function promotionLabel(x: Product) {
+    if (!x.promotion_type || x.promotion_value == null) return 'Chưa thiết lập'
+    return x.promotion_type === 'percent' ? `Giảm ${x.promotion_value}%` : `Giảm ${formatPrice(x.promotion_value)}`
+  }
+  return <>
+    <PageHeading title="Quản lý sản phẩm" description="Theo dõi sản phẩm, giá bán, tồn kho và trạng thái hiển thị trên website." action={<button className="primary" onClick={() => navigate('/products')} style={{display:'none'}}>Làm mới</button>}/>
+    <div className="product-summary-grid">
+      <div className="product-summary-card"><span>Tổng sản phẩm</span><strong>{rows.length}</strong><small>Tất cả sản phẩm trong hệ thống</small></div>
+      <div className="product-summary-card"><span>Đang hiển thị</span><strong>{visibleCount}</strong><small>Được phép hiển thị trên website</small></div>
+      <div className="product-summary-card"><span>Sắp hết hàng</span><strong>{lowStock}</strong><small>Còn từ 1–5 sản phẩm</small></div>
+      <div className="product-summary-card"><span>Hết hàng</span><strong>{outOfStock}</strong><small>Cần kiểm tra tồn kho</small></div>
+    </div>
+    <div className="product-list-toolbar">
+      <div className="product-search"><span>⌕</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm tên, mã hoặc slug sản phẩm…"/>{search && <button className="text-btn" onClick={() => setSearch('')}>Xóa</button>}</div>
+      <button className="primary" onClick={() => navigate('/products/new')}>＋ Thêm sản phẩm</button>
+    </div>
+    <div className="product-filter-row">
+      <label>Danh mục<select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}><option value="all">Tất cả danh mục</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+      <label>Hiển thị<select value={visibilityFilter} onChange={e => setVisibilityFilter(e.target.value)}><option value="all">Tất cả trạng thái</option><option value="visible">Đang hiển thị</option><option value="hidden">Đang ẩn</option></select></label>
+      <label>Khuyến mãi<select value={promotionFilter} onChange={e => setPromotionFilter(e.target.value)}><option value="all">Tất cả khuyến mãi</option><option value="active">Đang giảm giá</option><option value="flash">Flash Sale</option><option value="none">Không khuyến mãi</option></select></label>
+      <label>Sắp xếp<select value={sortBy} onChange={e => setSortBy(e.target.value)}><option value="updated">Mới cập nhật</option><option value="name">Tên A–Z</option><option value="price-asc">Giá tăng dần</option><option value="price-desc">Giá giảm dần</option><option value="stock">Tồn kho thấp</option></select></label>
+      <span className="product-result-count">Hiển thị <b>{filtered.length}</b> / {rows.length} sản phẩm</span>
+    </div>
     {error && <div className="notice error">{error}</div>}
-    <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>SẢN PHẨM</th><th>GIÁ BÁN</th><th>KHUYẾN MÃI</th><th>TỒN KHO</th><th>TRẠNG THÁI</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
-    {loading ? <tr><td colSpan={6} className="empty">Đang tải dữ liệu…</td></tr> : filtered.length===0 ? <tr><td colSpan={6} className="empty">Chưa có sản phẩm. Nhấn “Thêm sản phẩm” để bắt đầu.</td></tr> : filtered.map(x=><tr key={x.id}><td><div className="product-cell">{x.image_url ? <img src={x.image_url} alt=""/> : <div className="image-placeholder"><Package size={18}/></div>}<div><b>{x.name}</b><small>{x.slug}</small></div></div></td><td>{Number(x.price).toLocaleString('vi-VN')} đ</td><td>{x.promotion_type && x.promotion_value != null ? (x.promotion_type==='percent' ? `-${x.promotion_value}%` : `-${Number(x.promotion_value).toLocaleString('vi-VN')} đ`) : '—'}{x.is_flash_deal && <small>Flash Deal</small>}</td><td>{x.stock}</td><td><span className={`pill ${x.is_published?'pill-green':'pill-gray'}`}>{x.is_published?'Đang hiển thị':'Bản nháp'}</span></td><td><div className="row-actions"><button className="text-btn" onClick={()=>navigate("/products/" + x.id + "/edit")}>Chi tiết</button><button className="text-btn danger-text" onClick={()=>remove(x)}>Xóa</button></div></td></tr>)}
+    <div className="content-card table-card product-list-card"><div className="table-scroll"><table><thead><tr><th>SẢN PHẨM</th><th>GIÁ BÁN</th><th>KHUYẾN MÃI</th><th>TỒN KHO</th><th>HIỂN THỊ WEBSITE</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
+      {loading ? <tr><td colSpan={6} className="empty">Đang tải danh sách sản phẩm…</td></tr> : filtered.length === 0 ? <tr><td colSpan={6} className="empty"><div className="product-empty-state"><Package size={28}/><b>{rows.length ? 'Không tìm thấy sản phẩm phù hợp' : 'Chưa có sản phẩm nào'}</b><span>{rows.length ? 'Thử đổi từ khóa hoặc điều kiện lọc.' : 'Thêm sản phẩm đầu tiên để bắt đầu quản lý cửa hàng.'}</span>{rows.length > 0 ? <button className="secondary" onClick={() => {setSearch('');setCategoryFilter('all');setVisibilityFilter('all');setPromotionFilter('all');setSortBy('updated')}}>Xóa bộ lọc</button> : <button className="primary" onClick={() => navigate('/products/new')}>＋ Thêm sản phẩm</button>}</div></td></tr> : filtered.map(x => <tr key={x.id}>
+        <td><div className="product-cell">{x.image_url ? <img src={x.image_url} alt="" onError={e => {e.currentTarget.style.display='none'}}/> : <div className="image-placeholder"><Package size={18}/></div>}<div><b>{x.name}</b><small>{x.slug || 'Chưa có slug'}</small><small>{categories.find(c => c.id === x.category_id)?.name ?? 'Chưa phân loại'}</small></div></div></td>
+        <td><b className="product-price">{formatPrice(x.price)}</b></td>
+        <td><span className={isPromotionActive(x) ? 'promotion-status active' : 'promotion-status'}>{promotionLabel(x)}</span>{x.is_flash_deal && <small className="flash-label">⚡ Flash Sale</small>}</td>
+        <td><span className={Number(x.stock) <= 0 ? 'stock-status stock-out' : Number(x.stock) <= 5 ? 'stock-status stock-low' : 'stock-status'}>{Number(x.stock) <= 0 ? 'Hết hàng' : `Còn ${x.stock}`}</span></td>
+        <td><span className={x.is_published ? 'visibility-status visible' : 'visibility-status hidden'}><span/>{x.is_published ? 'Đang hiển thị' : 'Đang ẩn'}</span></td>
+        <td><div className="row-actions"><button className="text-btn" onClick={() => navigate('/products/' + x.id + '/edit')}>Chỉnh sửa</button><button className="text-btn danger-text" onClick={() => remove(x)}>Xóa</button></div></td>
+      </tr>)}
     </tbody></table></div></div>
-
   </>
 }
+
 
 function ProductEditor() {
   const navigate = useNavigate()
