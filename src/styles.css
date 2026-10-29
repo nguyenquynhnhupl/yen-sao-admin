@@ -58,3 +58,30 @@
 .image-upload-error{flex-basis:100%;color:#b42318}
 .compact-image-url-input{min-width:190px;max-width:250px}
 .compact-image-url-input .image-url-preview{width:42px;height:36px}
+
+
+/* Product and promotion management refinements */
+.promotion-panel{display:none!important}
+.product-cell{min-width:230px}
+.product-cell img,.image-placeholder{width:54px;height:54px;border-radius:10px;flex-shrink:0}
+.product-cell b{display:block;max-width:270px;white-space:normal;line-height:1.45}
+.product-cell small{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.table-card th{position:sticky;top:0;z-index:1}
+.table-card tbody tr{transition:background .15s}
+.table-card tbody tr:hover{background:#f7faf7}
+.row-actions{gap:8px}
+.text-btn{border-radius:7px;padding:7px 10px;background:#f3f7f3}
+.text-btn:hover{background:#e8f1e9}
+.text-btn.danger-text{background:#fff5f3}
+.pill-green{background:#e8f5ec;color:#287247}
+.pill-gray{background:#f0f2f0;color:#778178}
+.promotion-panel,.notice{border-radius:10px}
+.modal{width:min(760px,calc(100vw - 28px));max-height:calc(100vh - 32px);overflow-y:auto}
+.modal-head{position:sticky;top:-1px;background:#fff;z-index:2;padding-bottom:15px}
+.modal-actions{position:sticky;bottom:-1px;background:#fff;padding-top:14px}
+.form-grid label{gap:7px}
+.form-grid input,.form-grid select,.form-grid textarea{border-radius:8px;border-color:#dfe7e0;min-height:40px}
+.form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus{outline:2px solid #d6e8d9;border-color:#6e9b7b}
+.page-heading .pill{white-space:nowrap}
+@media(max-width:900px){.page-content{padding:24px 18px 40px}.topbar{padding:0 18px}.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.page-heading{align-items:flex-start;flex-direction:column}.page-heading h1{font-size:23px}.page-heading .primary,.page-heading .secondary{width:100%}.toolbar{flex-wrap:wrap}.searchbox{width:100%}.quick-grid{grid-template-columns:1fr}.content-card{padding:14px}.table-card{padding:0}.modal{padding:18px}.form-grid{grid-template-columns:1fr}.form-grid .span-2{grid-column:span 1}.topbar-right>span:not(.status-dot){display:none}}
