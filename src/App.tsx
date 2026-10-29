@@ -123,7 +123,7 @@ function ImageUrlInput({ value, onChange, placeholder = 'https://…', compact =
   return <div className={compact ? 'image-url-input compact-image-url-input' : 'image-url-input'}>
     <input type="url" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
     <label className="secondary image-upload-control"><Upload size={14}/>{uploading ? 'Đang tải…' : 'Tải ảnh lên'}<input type="file" accept="image/*" disabled={uploading} onChange={e => { void upload(e.target.files?.[0]); e.currentTarget.value = '' }} /></label>
-    {value && <img className="image-url-preview" src={value} alt="Xem trước ảnh" onError={e => { e.currentTarget.style.display = 'none' }} />}
+    {value && !compact && <img className="image-url-preview" src={value} alt="Xem trước ảnh" onError={e => { e.currentTarget.style.display = 'none' }} />}
     {uploadError && <small className="image-upload-error">{uploadError}</small>}
   </div>
 }
