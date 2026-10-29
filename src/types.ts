@@ -19,6 +19,9 @@ export type Product = {
   category_id: string | null;
   stock: number;
   is_published: boolean;
+  is_flash_sale?: boolean;
+  flash_sale_start_at?: string | null;
+  flash_sale_end_at?: string | null;
   created_at?: string;
 };
 
