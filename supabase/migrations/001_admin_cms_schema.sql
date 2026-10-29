@@ -34,6 +34,11 @@ create table if not exists public.categories (
 
 alter table public.categories add column if not exists image_url text;
 
+-- Per-product Flash Sale visibility and schedule.
+alter table public.products add column if not exists is_flash_sale boolean not null default false;
+alter table public.products add column if not exists flash_sale_start_at timestamptz;
+alter table public.products add column if not exists flash_sale_end_at timestamptz;
+
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   name text not null,
