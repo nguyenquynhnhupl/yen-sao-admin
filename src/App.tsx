@@ -225,6 +225,7 @@ function ProductEditor() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name:'', slug:'', description:'', price:'', image_url:'', gallery_urls:'', category_id:'', stock:'0', is_published:false })
+  const [detailBlocks, setDetailBlocks] = useState<{ id: string; type: 'text' | 'image'; content: string }[]>([])
   useEffect(() => {
     let active = true
     async function load() {
@@ -234,6 +235,7 @@ function ProductEditor() {
         const { data, error: e } = await requireSupabase().from('products').select('*').eq('id', productId).single()
         if (e) throw e
         if (active && data) setForm({ name:data.name ?? '', slug:data.slug ?? '', description:data.description ?? '', price:String(data.price ?? ''), image_url:data.image_url ?? '', gallery_urls:Array.isArray(data.gallery_urls) ? data.gallery_urls.join('\n') : '', category_id:data.category_id ?? '', stock:String(data.stock ?? 0), is_published:Boolean(data.is_published) })
+        if (active && data) setDetailBlocks(Array.isArray(data.detail_content) ? data.detail_content.map((block: { type?: string; content?: string }, index: number) => ({ id: `${Date.now()}-${index}`, type: block.type === 'image' ? 'image' : 'text', content: block.content ?? '' })) : [])
       } catch (err) { if (active) setError(err instanceof Error ? err.message : 'Không tải được sản phẩm.') }
       finally { if (active) setLoading(false) }
     }
@@ -246,7 +248,7 @@ function ProductEditor() {
       if (!form.name.trim()) throw new Error('Vui lòng nhập tên sản phẩm.')
       if (form.price === '' || Number(form.price) < 0) throw new Error('Giá bán không hợp lệ.')
       if (Number(form.stock) < 0) throw new Error('Tồn kho không được âm.')
-      const payload = { name:form.name.trim(), slug:form.slug.trim() || slugify(form.name), description:form.description.trim() || null, price:Number(form.price), image_url:form.image_url.trim() || null, gallery_urls:form.gallery_urls.split('\n').map(url=>url.trim()).filter(Boolean), category_id:form.category_id || null, stock:Number(form.stock), is_published:form.is_published }
+      const payload = { name:form.name.trim(), slug:form.slug.trim() || slugify(form.name), description:form.description.trim() || null, detail_content:detailBlocks.filter(block => block.content.trim()).map(({type,content}) => ({type,content:content.trim()})), price:Number(form.price), image_url:form.image_url.trim() || null, gallery_urls:form.gallery_urls.split('\n').map(url=>url.trim()).filter(Boolean), category_id:form.category_id || null, stock:Number(form.stock), is_published:form.is_published }
       const q = requireSupabase().from('products')
       const result = productId ? await q.update(payload).eq('id',productId) : await q.insert(payload)
       if (result.error) throw result.error
@@ -263,6 +265,14 @@ function ProductEditor() {
           <label>Tên sản phẩm *<input required value={form.name} onChange={e=>setForm({...form,name:e.target.value,slug:form.slug || slugify(e.target.value)})} placeholder="Ví dụ: Yến tinh chế nguyên tổ"/></label>
           <label>Slug URL<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} placeholder="yen-tinh-che-nguyen-to"/><small className="muted">Dùng trong đường dẫn sản phẩm.</small></label>
           <label>Mô tả sản phẩm<textarea rows={6} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Mô tả chất lượng, quy cách và cách sử dụng…"/></label>
+          <div className="detail-content-builder">
+            <div className="detail-content-builder-heading"><div><b>Mô tả sản phẩm chi tiết</b><small className="muted">Thêm từng mục văn bản hoặc ảnh tải lên từ máy.</small></div><div className="detail-content-add-actions"><button type="button" className="secondary" onClick={()=>setDetailBlocks(prev=>[...prev,{id:Date.now().toString()+Math.random(),type:'text',content:''}])}>＋ Thêm văn bản</button><button type="button" className="secondary" onClick={()=>setDetailBlocks(prev=>[...prev,{id:Date.now().toString()+Math.random(),type:'image',content:''}])}>＋ Thêm ảnh</button></div></div>
+            {detailBlocks.length===0 && <p className="detail-content-empty muted">Chưa có mục chi tiết. Chọn “Thêm văn bản” hoặc “Thêm ảnh”.</p>}
+            {detailBlocks.map((block,index)=><div className="detail-content-block" key={block.id}>
+              <div className="detail-content-block-top"><b>Mục {index+1} · {block.type==='text'?'Văn bản':'Hình ảnh'}</b><div className="row-actions"><button type="button" className="text-btn" disabled={index===0} onClick={()=>setDetailBlocks(prev=>{const next=[...prev];[next[index-1],next[index]]=[next[index],next[index-1]];return next})}>↑</button><button type="button" className="text-btn" disabled={index===detailBlocks.length-1} onClick={()=>setDetailBlocks(prev=>{const next=[...prev];[next[index+1],next[index]]=[next[index],next[index+1]];return next})}>↓</button><button type="button" className="text-btn danger-text" onClick={()=>setDetailBlocks(prev=>prev.filter(item=>item.id!==block.id))}>Xóa</button></div></div>
+              {block.type==='text' ? <textarea rows={4} value={block.content} onChange={e=>setDetailBlocks(prev=>prev.map(item=>item.id===block.id?{...item,content:e.target.value}:item))} placeholder="Nhập nội dung chi tiết…"/> : <ImageUrlInput value={block.content} onChange={value=>setDetailBlocks(prev=>prev.map(item=>item.id===block.id?{...item,content:value}:item))} placeholder="Chọn ảnh từ máy hoặc nhập URL ảnh"/>}
+            </div>)}
+          </div>
         </section>
         <section className="content-card editor-section"><div className="editor-section-heading"><span className="editor-step">02</span><div><h3>Hình ảnh sản phẩm</h3><p className="muted">Chọn ảnh chính và thêm nhiều ảnh phụ cho thư viện sản phẩm.</p></div></div><label>Ảnh chính *<ImageUrlInput value={form.image_url} onChange={value=>setForm({...form,image_url:value})}/></label><label>Ảnh phụ (mỗi đường dẫn một dòng)<textarea rows={4} value={form.gallery_urls} onChange={e=>setForm({...form,gallery_urls:e.target.value})} placeholder="Mỗi dòng nhập một URL ảnh phụ"/><small className="muted">Ảnh chính dùng làm ảnh đại diện; các ảnh phụ được lưu trong thư viện sản phẩm.</small></label>{form.gallery_urls.split('\n').map((url,i)=>url.trim() ? <div className="gallery-url-preview" key={i}><img src={url.trim()} alt={`Ảnh phụ ${i+1}`} onError={e=>{e.currentTarget.style.display='none'}}/><span>Ảnh phụ {i+1}</span><button type="button" className="text-btn danger-text" onClick={()=>setForm({...form,gallery_urls:form.gallery_urls.split('\n').filter((_,index)=>index!==i).join('\n')})}>Xóa</button></div> : null)}</section>
       </div>
