@@ -91,8 +91,9 @@ function App() {
   </div>
 }
 
-function PageHeading({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) {
-  return <div className="page-heading"><div><p className="eyebrow">QUẢN LÝ NỘI DUNG</p><h1>{title}</h1><p className="muted">{description}</p></div>{action}</div>
+function PageHeading({ action }: { title: string; description: string; action?: React.ReactNode }) {
+  if (!action) return null
+  return <div className="page-heading page-heading-actions-only">{action}</div>
 }
 
 function ImageUrlInput({ value, onChange, placeholder = 'https://…', compact = false }: { value: string; onChange: (value: string) => void; placeholder?: string; compact?: boolean }) {
