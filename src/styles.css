@@ -246,9 +246,9 @@
 .product-image-field{display:grid;gap:10px;min-width:0}
 .product-image-label{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:var(--text,#342b22)}
 .product-image-label small{font-size:10px;font-weight:700;letter-spacing:.04em;color:#9a7650;background:#f7f0e6;padding:4px 7px;border-radius:5px}
-.main-image-picker{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:14px;align-items:center;padding:14px;border:1px solid var(--border,#e8e1d9);border-radius:14px;background:#fcfaf7}
-.main-product-image-preview{width:100%;height:156px;object-fit:cover;border-radius:10px;background:#f2eee8}
-.main-image-placeholder{height:156px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;border:1px dashed #d9c9b5;border-radius:10px;background:#f7f2eb;color:#9b8268}
+.main-image-picker{display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:14px;border:1px solid var(--border,#e8e1d9);border-radius:14px;background:#fcfaf7}
+.main-product-image-preview{width:100%;height:220px;object-fit:cover;border-radius:10px;background:#f2eee8}
+.main-image-placeholder{height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;border:1px dashed #d9c9b5;border-radius:10px;background:#f7f2eb;color:#9b8268}
 .main-image-placeholder strong{font-size:12px;color:#5e5144}
 .main-image-placeholder span{font-size:10px;color:#9b9084}
 .product-image-manager .image-url-input input[type="url"]{display:none}
@@ -268,4 +268,4 @@
 .gallery-add-tile .image-url-input{justify-content:center}
 .gallery-add-tile .image-upload-control{flex-direction:column;gap:7px;min-height:76px;min-width:76px;border:0;background:transparent;color:#80664b}
 .gallery-add-tile .image-upload-control:hover{background:#f5eadb}
-@media(max-width:560px){.main-image-picker{grid-template-columns:1fr}.main-product-image-preview,.main-image-placeholder{height:180px}.gallery-upload-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.main-product-image-preview,.main-image-placeholder{height:200px}.gallery-upload-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
