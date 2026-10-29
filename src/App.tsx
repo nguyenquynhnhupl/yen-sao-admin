@@ -64,6 +64,9 @@ function App() {
   if (!ready) return <div className="loading">Đang tải CMS…</div>
   if (!session) return <Routes><Route path="*" element={<Login onLogin={() => { setSession(true); navigate('/') }} />} /></Routes>
   const current = (nav.find(n => n.id === location.pathname.split('/')[1])?.id ?? 'dashboard') as Section
+  const isProductDetail = location.pathname.startsWith('/products/') && location.pathname !== '/products/new'
+  const isProductCreate = location.pathname === '/products/new'
+  const isProductEditor = isProductDetail || isProductCreate
   return <div className="app-shell">
     {mobileNav && <button className="scrim" onClick={() => setMobileNav(false)} aria-label="Đóng menu" />}
     <aside className={`sidebar ${mobileNav ? 'sidebar-open' : ''}`}>
@@ -73,7 +76,7 @@ function App() {
       <div className="sidebar-bottom"><div className="secure-note"><Activity size={16}/><span>Quản trị nội dung<br/><b>Kết nối Supabase</b></span></div><button className="nav-item logout" onClick={logout}><LogOut size={18}/>Đăng xuất</button></div>
     </aside>
     <main className="main-area">
-      <header className="topbar"><button className="icon-btn menu-toggle" onClick={() => setMobileNav(true)}><Menu size={20}/></button><div><span className="breadcrumb">Admin CMS / </span><strong>{sectionTitles[current]}</strong></div><div className="topbar-right"><span className="status-dot"/><span>Quản trị viên</span><div className="avatar">A</div></div></header>
+      <header className="topbar"><button className="icon-btn menu-toggle" onClick={() => setMobileNav(true)}><Menu size={20}/></button><div className="topbar-breadcrumb"><span className="breadcrumb">Admin CMS / </span>{isProductEditor ? <><Link to="/products" className="topbar-breadcrumb-link">Sản phẩm</Link><span className="breadcrumb-separator">/</span><strong>{isProductCreate ? 'Thêm sản phẩm mới' : 'Chi tiết sản phẩm'}</strong></> : <strong>{sectionTitles[current]}</strong>}</div><div className="topbar-right"><span className="status-dot"/><span>Quản trị viên</span><div className="avatar">A</div></div></header>
       <div className="page-content"><Routes>
         <Route path="/" element={<Dashboard/>}/>
         <Route path="/homepage" element={<Homepage/>}/>
@@ -253,7 +256,6 @@ function ProductEditor() {
   }
   if (loading) return <div className="loading">Đang tải thông tin sản phẩm…</div>
   return <>
-    <div className="editor-breadcrumb"><span className="muted">Admin CMS /</span><Link className="editor-breadcrumb-link" to="/products">Sản phẩm</Link><span className="muted">/ {isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'}</span><button className="text-btn editor-back-link" type="button" onClick={()=>navigate('/products')}>← Quay lại danh sách</button></div>
     <div className="product-detail-heading"><div><p className="eyebrow">QUẢN LÝ DANH MỤC SẢN PHẨM</p><h1>{isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'}</h1><p className="product-detail-subtitle">Quản lý thông tin, hình ảnh, giá bán và trạng thái hiển thị trên website.</p></div><span className={form.is_published ? 'pill pill-green' : 'pill pill-gray'}>{form.is_published ? '● Đang xuất bản' : '● Bản nháp'}</span></div>
     {error && <div className="notice error">{error}</div>}
     <form className="product-editor-layout" onSubmit={save}>
