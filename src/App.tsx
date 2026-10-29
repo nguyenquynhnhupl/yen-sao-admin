@@ -256,7 +256,6 @@ function ProductEditor() {
   }
   if (loading) return <div className="loading">Đang tải thông tin sản phẩm…</div>
   return <>
-    <div className="product-detail-heading"><div><p className="eyebrow">QUẢN LÝ DANH MỤC SẢN PHẨM</p><h1>{isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'}</h1><p className="product-detail-subtitle">Quản lý thông tin, hình ảnh, giá bán và trạng thái hiển thị trên website.</p></div><span className={form.is_published ? 'pill pill-green' : 'pill pill-gray'}>{form.is_published ? '● Đang xuất bản' : '● Bản nháp'}</span></div>
     {error && <div className="notice error">{error}</div>}
     <form className="product-editor-layout" onSubmit={save}>
       <div className="product-editor-main">
