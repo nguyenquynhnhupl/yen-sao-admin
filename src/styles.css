@@ -224,3 +224,18 @@
 
 /* Keep every breadcrumb segment in one consistent typography style. */
 .topbar-breadcrumb{display:flex;align-items:center;gap:5px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;line-height:1.4;color:#7f8b82;white-space:nowrap}.topbar-breadcrumb .breadcrumb,.topbar-breadcrumb .topbar-breadcrumb-link,.topbar-breadcrumb .breadcrumb-separator,.topbar-breadcrumb strong{font:inherit;color:inherit;letter-spacing:normal}.topbar-breadcrumb strong{font-weight:500;color:#526157}.topbar-breadcrumb .topbar-breadcrumb-link:hover{color:#1c5135;text-decoration:underline}.topbar-breadcrumb .breadcrumb-separator{color:#a1aaa4}
+
+
+/* Structured product detail content editor */
+.detail-content-builder{display:flex;flex-direction:column;gap:12px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border,#e7ebe7)}
+.detail-content-builder-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.detail-content-builder-heading>div:first-child{display:flex;flex-direction:column;gap:5px}
+.detail-content-builder-heading small{font-size:12px;line-height:1.5}
+.detail-content-add-actions{display:flex;gap:8px;flex-wrap:wrap}
+.detail-content-add-actions button{font-size:12px;padding:8px 10px}
+.detail-content-empty{margin:0;padding:16px;border:1px dashed var(--border,#dfe5df);border-radius:10px;text-align:center;font-size:13px}
+.detail-content-block{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--border,#e4e9e4);border-radius:12px;background:var(--surface-subtle,#fafbf9)}
+.detail-content-block-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.detail-content-block-top>b{font-size:13px;color:var(--text,#334239)}
+.detail-content-block textarea{width:100%;resize:vertical}
+@media(max-width:640px){.detail-content-builder-heading{flex-direction:column}.detail-content-add-actions{width:100%}.detail-content-add-actions button{flex:1}.detail-content-block{padding:10px}}
