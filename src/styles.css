@@ -47,3 +47,14 @@
 .benefit-icon-preview{display:inline-flex;align-items:center;color:#47714f}
 .benefit-add-button{align-self:flex-start;display:inline-flex;align-items:center;gap:7px}
 @media(max-width:640px){.benefit-item-fields{grid-template-columns:1fr}.benefit-item-fields .span-2{grid-column:auto}}
+
+
+/* Shared image upload controls for CMS image fields */
+.image-url-input{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px}
+.image-url-input>input[type="url"]{flex:1 1 180px;min-width:0}
+.image-upload-control{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer}
+.image-upload-control input[type="file"]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.image-url-preview{width:64px;height:54px;object-fit:contain;border:1px solid #e3e8e3;border-radius:8px;background:#fff;padding:3px}
+.image-upload-error{flex-basis:100%;color:#b42318}
+.compact-image-url-input{min-width:190px;max-width:250px}
+.compact-image-url-input .image-url-preview{width:42px;height:36px}
