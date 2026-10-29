@@ -5,17 +5,18 @@ import { isSupabaseConfigured, requireSupabase, supabase } from './lib/supabase'
 import type { Article, Banner, Category, Order, Product } from './types'
 import { Homepage } from './Homepage'
 
-type Section = 'dashboard' | 'homepage' | 'products' | 'categories' | 'banners' | 'articles' | 'orders'
+type Section = 'dashboard' | 'homepage' | 'products' | 'promotions' | 'categories' | 'banners' | 'articles' | 'orders'
 const nav: { id: Section; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
   { id: 'homepage', label: 'Trang chủ', icon: House },
   { id: 'products', label: 'Sản phẩm', icon: Package },
+  { id: 'promotions', label: 'Khuyến mãi', icon: Tags },
   { id: 'categories', label: 'Danh mục', icon: Tags },
   { id: 'banners', label: 'Banner', icon: Image },
   { id: 'articles', label: 'Bài viết', icon: BookOpen },
   { id: 'orders', label: 'Đơn hàng', icon: ShoppingCart },
 ]
-const sectionTitles: Record<Section, string> = { dashboard: 'Tổng quan', homepage: 'Trang chủ', products: 'Sản phẩm', categories: 'Danh mục', banners: 'Banner', articles: 'Bài viết', orders: 'Đơn hàng' }
+const sectionTitles: Record<Section, string> = { dashboard: 'Tổng quan', homepage: 'Trang chủ', products: 'Sản phẩm', promotions: 'Khuyến mãi', categories: 'Danh mục', banners: 'Banner', articles: 'Bài viết', orders: 'Đơn hàng' }
 
 function Login({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('')
@@ -77,6 +78,7 @@ function App() {
         <Route path="/" element={<Dashboard/>}/>
         <Route path="/homepage" element={<Homepage/>}/>
         <Route path="/products" element={<Products/>}/>
+        <Route path="/promotions" element={<Promotions/>}/>
         <Route path="/categories" element={<Categories/>}/>
         <Route path="/banners" element={<Banners/>}/>
         <Route path="/articles" element={<Articles/>}/>
@@ -204,24 +206,102 @@ function Products() {
         <label className="span-2">Hình ảnh sản phẩm<ImageUrlInput value={form.image_url} onChange={value=>setForm({...form,image_url:value})}/></label>
         <label className="span-2">Mô tả<textarea rows={3} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
         <label className="check-label span-2"><input type="checkbox" checked={form.is_published} onChange={e=>setForm({...form,is_published:e.target.checked})}/> Xuất bản lên website</label>
-        <div className="span-2 promotion-panel">
-          <div><b>Khuyến mãi</b><p className="muted small">Thiết lập mức giảm và thời gian áp dụng riêng cho sản phẩm này.</p></div>
-          <button type="button" className="secondary" onClick={()=>setForm({...form,promotion_enabled:!form.promotion_enabled})}>{form.promotion_enabled?'Bỏ khuyến mãi':'＋ Tạo khuyến mãi'}</button>
-        </div>
-        {form.promotion_enabled && <>
-          <label>Hình thức giảm giá<select value={form.promotion_type} onChange={e=>setForm({...form,promotion_type:e.target.value})}><option value="percent">Giảm theo phần trăm (%)</option><option value="amount">Giảm số tiền (VNĐ)</option></select></label>
-          <label>{form.promotion_type==='percent'?'Phần trăm giảm (%)':'Số tiền giảm (VNĐ)'} *<input required min="1" max={form.promotion_type==='percent' ? 100 : undefined} type="number" value={form.promotion_value} onChange={e=>setForm({...form,promotion_value:e.target.value})}/></label>
-          <label>Khuyến mãi bắt đầu *<input required type="datetime-local" value={form.promotion_start_at} onChange={e=>setForm({...form,promotion_start_at:e.target.value})}/></label>
-          <label>Khuyến mãi kết thúc *<input required type="datetime-local" min={form.promotion_start_at || undefined} value={form.promotion_end_at} onChange={e=>setForm({...form,promotion_end_at:e.target.value})}/></label>
-          <label className="check-label span-2"><input type="checkbox" checked={form.is_flash_deal} onChange={e=>setForm({...form,is_flash_deal:e.target.checked})}/> Đưa vào Flash Deal</label>
-          {form.is_flash_deal && <>
-            <label>Flash Deal bắt đầu *<input required type="datetime-local" value={form.flash_deal_start_at} onChange={e=>setForm({...form,flash_deal_start_at:e.target.value})}/></label>
-            <label>Flash Deal kết thúc *<input required type="datetime-local" min={form.flash_deal_start_at || undefined} value={form.flash_deal_end_at} onChange={e=>setForm({...form,flash_deal_end_at:e.target.value})}/></label>
-            <p className="muted small span-2">Flash Deal chỉ chạy trong khung giờ đã cài đặt và cần sản phẩm được xuất bản.</p>
+        <div className="span-2 notice"><b>Khuyến mãi được quản lý riêng.</b> Sau khi lưu sản phẩm, vào mục <Link to="/promotions">Khuyến mãi</Link> để tạo chương trình và cài đặt Flash Deal.</div>
+      </div>
+      {message&&<div className="notice error">{message}</div>}<div className="modal-actions"><button type="button" className="secondary" onClick={()=>setModal(false)}>Hủy</button><button className="primary" disabled={saving}>{saving?'Đang lưu…':'Lưu sản phẩm'}</button></div></form></div>}
+  </>
+}
+
+
+function Promotions() {
+  const { rows, loading, error, refresh } = useTable<Product>('products')
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<Product | null>(null)
+  const [enabled, setEnabled] = useState(true)
+  const [type, setType] = useState<'percent' | 'amount'>('percent')
+  const [value, setValue] = useState('')
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [flash, setFlash] = useState(false)
+  const [flashStart, setFlashStart] = useState('')
+  const [flashEnd, setFlashEnd] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  function localDate(value?: string | null) {
+    if (!value) return ''
+    const d = new Date(value)
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  }
+  function openPromotion(p: Product) {
+    setSelected(p)
+    setEnabled(Boolean(p.promotion_type && p.promotion_value != null))
+    setType(p.promotion_type ?? 'percent')
+    setValue(p.promotion_value == null ? '' : String(p.promotion_value))
+    setStart(localDate(p.promotion_start_at))
+    setEnd(localDate(p.promotion_end_at))
+    setFlash(Boolean(p.is_flash_deal))
+    setFlashStart(localDate(p.flash_deal_start_at))
+    setFlashEnd(localDate(p.flash_deal_end_at))
+    setMessage('')
+  }
+  async function savePromotion(e: FormEvent) {
+    e.preventDefault()
+    if (!selected) return
+    setSaving(true); setMessage('')
+    try {
+      if (enabled && (!value || Number(value) <= 0 || !start || !end || new Date(end) <= new Date(start))) throw new Error('Nhập mức giảm và thời gian khuyến mãi hợp lệ.')
+      if (enabled && type === 'percent' && Number(value) > 100) throw new Error('Phần trăm giảm không được vượt quá 100%.')
+      if (flash && (!enabled || !flashStart || !flashEnd || new Date(flashEnd) <= new Date(flashStart))) throw new Error('Flash Deal cần có khuyến mãi và khung giờ hợp lệ.')
+      const { error: updateError } = await requireSupabase().from('products').update({
+        promotion_type: enabled ? type : null,
+        promotion_value: enabled ? Number(value) : null,
+        promotion_start_at: enabled ? new Date(start).toISOString() : null,
+        promotion_end_at: enabled ? new Date(end).toISOString() : null,
+        is_flash_deal: enabled && flash,
+        flash_deal_start_at: enabled && flash ? new Date(flashStart).toISOString() : null,
+        flash_deal_end_at: enabled && flash ? new Date(flashEnd).toISOString() : null
+      }).eq('id', selected.id)
+      if (updateError) throw updateError
+      setSelected(null); await refresh()
+    } catch (err) { setMessage(err instanceof Error ? err.message : 'Không lưu được khuyến mãi.') }
+    finally { setSaving(false) }
+  }
+  const filtered = rows.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+  const activeCount = rows.filter(p => p.promotion_type && p.promotion_value != null).length
+  return <>
+    <PageHeading title="Khuyến mãi" description="Tạo và quản lý ưu đãi theo từng sản phẩm, tách biệt với thông tin sản phẩm." action={<span className="pill pill-green">{activeCount} sản phẩm có khuyến mãi</span>} />
+    <div className="toolbar"><div className="searchbox"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm sản phẩm để tạo khuyến mãi…"/></div><span className="muted small">{filtered.length} sản phẩm</span></div>
+    {error && <div className="notice error">{error}</div>}
+    <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>SẢN PHẨM</th><th>GIÁ GỐC</th><th>MỨC GIẢM</th><th>THỜI GIAN ÁP DỤNG</th><th>VỊ TRÍ HIỂN THỊ</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
+      {loading ? <tr><td colSpan={6} className="empty">Đang tải dữ liệu…</td></tr> : filtered.length === 0 ? <tr><td colSpan={6} className="empty">Chưa có sản phẩm.</td></tr> : filtered.map(p => <tr key={p.id}>
+        <td><div className="product-cell">{p.image_url ? <img src={p.image_url} alt=""/> : <div className="image-placeholder"><Package size={18}/></div>}<div><b>{p.name}</b><small>{p.is_published ? 'Đang hiển thị trên website' : 'Bản nháp'}</small></div></div></td>
+        <td>{Number(p.price).toLocaleString('vi-VN')} đ</td>
+        <td>{p.promotion_type && p.promotion_value != null ? <b>{p.promotion_type === 'percent' ? '-' + p.promotion_value + '%' : '-' + Number(p.promotion_value).toLocaleString('vi-VN') + ' đ'}</b> : <span className="muted">Chưa thiết lập</span>}</td>
+        <td>{p.promotion_start_at && p.promotion_end_at ? <><small>{new Date(p.promotion_start_at).toLocaleString('vi-VN')}</small><small>đến {new Date(p.promotion_end_at).toLocaleString('vi-VN')}</small></> : '—'}</td>
+        <td>{p.is_flash_deal ? <span className="pill pill-green">Flash Deal</span> : p.promotion_type ? <span className="pill pill-gray">Khuyến mãi thường</span> : '—'}</td>
+        <td><div className="row-actions"><button className="text-btn" onClick={() => openPromotion(p)}>{p.promotion_type ? 'Chỉnh sửa' : '＋ Tạo khuyến mãi'}</button></div></td>
+      </tr>)}
+    </tbody></table></div></div>
+    {selected && <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><form className="modal" onSubmit={savePromotion}>
+      <div className="modal-head"><div><p className="eyebrow">THIẾT LẬP ƯU ĐÃI</p><h2>{selected.name}</h2><p className="muted">Giá gốc: {Number(selected.price).toLocaleString('vi-VN')} đ</p></div><button type="button" className="icon-btn" onClick={()=>setSelected(null)}><X size={19}/></button></div>
+      <div className="form-grid">
+        <label className="check-label span-2"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/> Bật khuyến mãi cho sản phẩm này</label>
+        {enabled && <>
+          <label>Hình thức giảm giá<select value={type} onChange={e=>setType(e.target.value as 'percent'|'amount')}><option value="percent">Giảm theo phần trăm (%)</option><option value="amount">Giảm số tiền (VNĐ)</option></select></label>
+          <label>{type === 'percent' ? 'Phần trăm giảm (%)' : 'Số tiền giảm (VNĐ)'}<input required min="1" max={type === 'percent' ? 100 : undefined} type="number" value={value} onChange={e=>setValue(e.target.value)}/></label>
+          <label>Bắt đầu khuyến mãi<input required type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/></label>
+          <label>Kết thúc khuyến mãi<input required type="datetime-local" min={start || undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
+          <label className="check-label span-2"><input type="checkbox" checked={flash} onChange={e=>setFlash(e.target.checked)}/> Đưa sản phẩm vào khu vực Flash Deal</label>
+          {flash && <>
+            <label>Flash Deal bắt đầu<input required type="datetime-local" value={flashStart} onChange={e=>setFlashStart(e.target.value)}/></label>
+            <label>Flash Deal kết thúc<input required type="datetime-local" min={flashStart || undefined} value={flashEnd} onChange={e=>setFlashEnd(e.target.value)}/></label>
+            <p className="muted small span-2">Flash Deal chỉ quyết định việc hiển thị trong khu vực Flash Deal và có thời gian riêng.</p>
           </>}
         </>}
       </div>
-      {message&&<div className="notice error">{message}</div>}<div className="modal-actions"><button type="button" className="secondary" onClick={()=>setModal(false)}>Hủy</button><button className="primary" disabled={saving}>{saving?'Đang lưu…':'Lưu sản phẩm'}</button></div></form></div>}
+      {message && <div className="notice error">{message}</div>}
+      <div className="modal-actions"><button type="button" className="secondary" onClick={()=>setSelected(null)}>Hủy</button><button className="primary" disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu khuyến mãi'}</button></div>
+    </form></div>}
   </>
 }
 
