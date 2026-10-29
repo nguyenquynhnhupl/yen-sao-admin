@@ -196,7 +196,7 @@ function Products() {
     </div>
     <div className="product-filter-row">
       <label>Danh mục<select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}><option value="all">Tất cả danh mục</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-      <label>Hiển thị<select value={visibilityFilter} onChange={e => setVisibilityFilter(e.target.value)}><option value="all">Tất cả trạng thái</option><option value="visible">Đang hiển thị</option><option value="hidden">Đang ẩn</option></select></label>
+      <label>Hiển thị<select value={visibilityFilter} onChange={e => setVisibilityFilter(e.target.value)}><option value="all">Tất cả trạng thái</option><option value="visible">Đăng bán</option><option value="hidden">Nháp</option></select></label>
       <label>Khuyến mãi<select value={promotionFilter} onChange={e => setPromotionFilter(e.target.value)}><option value="all">Tất cả khuyến mãi</option><option value="active">Đang giảm giá</option><option value="flash">Flash Sale</option><option value="none">Không khuyến mãi</option></select></label>
       <label>Sắp xếp<select value={sortBy} onChange={e => setSortBy(e.target.value)}><option value="updated">Mới cập nhật</option><option value="name">Tên A–Z</option><option value="price-asc">Giá tăng dần</option><option value="price-desc">Giá giảm dần</option><option value="stock">Tồn kho thấp</option></select></label>
       <span className="product-result-count">Hiển thị <b>{filtered.length}</b> / {rows.length} sản phẩm</span>
@@ -208,7 +208,7 @@ function Products() {
         <td><b className="product-price">{formatPrice(x.price)}</b></td>
         <td><span className={isPromotionActive(x) ? 'promotion-status active' : 'promotion-status'}>{promotionLabel(x)}</span>{x.is_flash_deal && <small className="flash-label">⚡ Flash Sale</small>}</td>
         <td><span className={Number(x.stock) <= 0 ? 'stock-status stock-out' : Number(x.stock) <= 5 ? 'stock-status stock-low' : 'stock-status'}>{Number(x.stock) <= 0 ? 'Hết hàng' : `Còn ${x.stock}`}</span></td>
-        <td><span className={x.is_published ? 'visibility-status visible' : 'visibility-status hidden'}><span/>{x.is_published ? 'Đang hiển thị' : 'Đang ẩn'}</span></td>
+        <td><span className={x.is_published ? 'visibility-status visible' : 'visibility-status hidden'}><span/>{x.is_published ? 'Đăng bán' : 'Nháp'}</span></td>
         <td><div className="row-actions"><button className="text-btn" onClick={() => navigate('/products/' + x.id + '/edit')}>Chỉnh sửa</button><button className="text-btn danger-text" onClick={() => remove(x)}>Xóa</button></div></td>
       </tr>)}
     </tbody></table></div></div>
@@ -352,7 +352,7 @@ function Promotions() {
     {error && <div className="notice error">{error}</div>}
     <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>SẢN PHẨM</th><th>GIÁ GỐC</th><th>MỨC GIẢM</th><th>THỜI GIAN ÁP DỤNG</th><th>VỊ TRÍ HIỂN THỊ</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
       {loading ? <tr><td colSpan={6} className="empty">Đang tải dữ liệu…</td></tr> : filtered.length === 0 ? <tr><td colSpan={6} className="empty">Chưa có sản phẩm.</td></tr> : filtered.map(p => <tr key={p.id}>
-        <td><div className="product-cell">{p.image_url ? <img src={p.image_url} alt=""/> : <div className="image-placeholder"><Package size={18}/></div>}<div><b>{p.name}</b><small>{p.is_published ? 'Đang hiển thị trên website' : 'Bản nháp'}</small></div></div></td>
+        <td><div className="product-cell">{p.image_url ? <img src={p.image_url} alt=""/> : <div className="image-placeholder"><Package size={18}/></div>}<div><b>{p.name}</b><small>{p.is_published ? 'Đăng bán' : 'Nháp'}</small></div></div></td>
         <td>{Number(p.price).toLocaleString('vi-VN')} đ</td>
         <td>{p.promotion_type && p.promotion_value != null ? <b>{p.promotion_type === 'percent' ? '-' + p.promotion_value + '%' : '-' + Number(p.promotion_value).toLocaleString('vi-VN') + ' đ'}</b> : <span className="muted">Chưa thiết lập</span>}</td>
         <td>{p.promotion_start_at && p.promotion_end_at ? <><small>{new Date(p.promotion_start_at).toLocaleString('vi-VN')}</small><small>đến {new Date(p.promotion_end_at).toLocaleString('vi-VN')}</small></> : '—'}</td>
