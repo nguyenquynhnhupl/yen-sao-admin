@@ -221,7 +221,7 @@ function ProductEditor() {
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ name:'', slug:'', description:'', price:'', image_url:'', category_id:'', stock:'0', is_published:false })
+  const [form, setForm] = useState({ name:'', slug:'', description:'', price:'', image_url:'', gallery_urls:'', category_id:'', stock:'0', is_published:false })
   useEffect(() => {
     let active = true
     async function load() {
@@ -230,7 +230,7 @@ function ProductEditor() {
       try {
         const { data, error: e } = await requireSupabase().from('products').select('*').eq('id', productId).single()
         if (e) throw e
-        if (active && data) setForm({ name:data.name ?? '', slug:data.slug ?? '', description:data.description ?? '', price:String(data.price ?? ''), image_url:data.image_url ?? '', category_id:data.category_id ?? '', stock:String(data.stock ?? 0), is_published:Boolean(data.is_published) })
+        if (active && data) setForm({ name:data.name ?? '', slug:data.slug ?? '', description:data.description ?? '', price:String(data.price ?? ''), image_url:data.image_url ?? '', gallery_urls:Array.isArray(data.gallery_urls) ? data.gallery_urls.join('\n') : '', category_id:data.category_id ?? '', stock:String(data.stock ?? 0), is_published:Boolean(data.is_published) })
       } catch (err) { if (active) setError(err instanceof Error ? err.message : 'Không tải được sản phẩm.') }
       finally { if (active) setLoading(false) }
     }
@@ -243,7 +243,7 @@ function ProductEditor() {
       if (!form.name.trim()) throw new Error('Vui lòng nhập tên sản phẩm.')
       if (form.price === '' || Number(form.price) < 0) throw new Error('Giá bán không hợp lệ.')
       if (Number(form.stock) < 0) throw new Error('Tồn kho không được âm.')
-      const payload = { name:form.name.trim(), slug:form.slug.trim() || slugify(form.name), description:form.description.trim() || null, price:Number(form.price), image_url:form.image_url.trim() || null, category_id:form.category_id || null, stock:Number(form.stock), is_published:form.is_published }
+      const payload = { name:form.name.trim(), slug:form.slug.trim() || slugify(form.name), description:form.description.trim() || null, price:Number(form.price), image_url:form.image_url.trim() || null, gallery_urls:form.gallery_urls.split('\n').map(url=>url.trim()).filter(Boolean), category_id:form.category_id || null, stock:Number(form.stock), is_published:form.is_published }
       const q = requireSupabase().from('products')
       const result = productId ? await q.update(payload).eq('id',productId) : await q.insert(payload)
       if (result.error) throw result.error
@@ -253,7 +253,7 @@ function ProductEditor() {
   }
   if (loading) return <div className="loading">Đang tải thông tin sản phẩm…</div>
   return <>
-    <div className="editor-breadcrumb"><button className="text-btn" type="button" onClick={()=>navigate('/products')}>← Quay lại danh sách</button><span className="muted">/ {isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'}</span></div>
+    <div className="editor-breadcrumb"><span className="muted">Admin CMS /</span><Link className="editor-breadcrumb-link" to="/products">Sản phẩm</Link><span className="muted">/ {isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'}</span><button className="text-btn editor-back-link" type="button" onClick={()=>navigate('/products')}>← Quay lại danh sách</button></div>
     <PageHeading title={isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'} description="Cập nhật thông tin sản phẩm hiển thị trên website." action={<span className={form.is_published ? 'pill pill-green' : 'pill pill-gray'}>{form.is_published ? 'Đang xuất bản' : 'Bản nháp'}</span>} />
     {error && <div className="notice error">{error}</div>}
     <form className="product-editor-layout" onSubmit={save}>
@@ -263,7 +263,7 @@ function ProductEditor() {
           <label>Slug URL<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} placeholder="yen-tinh-che-nguyen-to"/><small className="muted">Dùng trong đường dẫn sản phẩm.</small></label>
           <label>Mô tả sản phẩm<textarea rows={6} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Mô tả chất lượng, quy cách và cách sử dụng…"/></label>
         </section>
-        <section className="content-card editor-section"><div className="editor-section-heading"><span className="editor-step">02</span><div><h3>Hình ảnh sản phẩm</h3><p className="muted">Tải ảnh lên hoặc dán đường dẫn hình ảnh.</p></div></div><ImageUrlInput value={form.image_url} onChange={value=>setForm({...form,image_url:value})}/></section>
+        <section className="content-card editor-section"><div className="editor-section-heading"><span className="editor-step">02</span><div><h3>Hình ảnh sản phẩm</h3><p className="muted">Chọn ảnh chính và thêm nhiều ảnh phụ cho thư viện sản phẩm.</p></div></div><label>Ảnh chính *<ImageUrlInput value={form.image_url} onChange={value=>setForm({...form,image_url:value})}/></label><label>Ảnh phụ (mỗi đường dẫn một dòng)<textarea rows={4} value={form.gallery_urls} onChange={e=>setForm({...form,gallery_urls:e.target.value})} placeholder="Mỗi dòng nhập một URL ảnh phụ"/><small className="muted">Ảnh chính dùng làm ảnh đại diện; các ảnh phụ được lưu trong thư viện sản phẩm.</small></label>{form.gallery_urls.split('\n').map((url,i)=>url.trim() ? <div className="gallery-url-preview" key={i}><img src={url.trim()} alt={`Ảnh phụ ${i+1}`} onError={e=>{e.currentTarget.style.display='none'}}/><span>Ảnh phụ {i+1}</span><button type="button" className="text-btn danger-text" onClick={()=>setForm({...form,gallery_urls:form.gallery_urls.split('\n').filter((_,index)=>index!==i).join('\n')})}>Xóa</button></div> : null)}</section>
       </div>
       <div className="product-editor-side">
         <section className="content-card editor-section"><div className="editor-section-heading"><span className="editor-step">03</span><div><h3>Giá và kho hàng</h3><p className="muted">Thông tin bán hàng.</p></div></div>
@@ -272,11 +272,11 @@ function ProductEditor() {
           <label>Danh mục<select value={form.category_id} onChange={e=>setForm({...form,category_id:e.target.value})}><option value="">Chưa chọn</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         </section>
         <section className="content-card editor-section"><div className="editor-section-heading"><span className="editor-step">04</span><div><h3>Trạng thái website</h3><p className="muted">Kiểm soát việc xuất bản.</p></div></div>
-          <label className="publish-toggle"><span><b>Hiển thị sản phẩm</b><small className="muted">Cho phép khách hàng xem sản phẩm trên website.</small></span><input type="checkbox" checked={form.is_published} onChange={e=>setForm({...form,is_published:e.target.checked})}/></label>
+          <div className="publish-status-options"><label className={`publish-status-option ${!form.is_published ? 'selected' : ''}`}><input type="radio" name="publish-status" checked={!form.is_published} onChange={()=>setForm({...form,is_published:false})}/><span><b>Nháp</b><small>Chưa hiển thị trên website. Có thể lưu để hoàn thiện sau.</small></span></label><label className={`publish-status-option ${form.is_published ? 'selected' : ''}`}><input type="radio" name="publish-status" checked={form.is_published} onChange={()=>setForm({...form,is_published:true})}/><span><b>Đăng bán</b><small>Hiển thị sản phẩm trên website cho khách hàng.</small></span></label></div>
           <div className="notice">Cài đặt giảm giá và Flash Deal được quản lý riêng tại trang <Link to="/promotions"><b>Khuyến mãi</b></Link>.</div>
         </section>
       </div>
-      <div className="product-editor-footer"><button type="button" className="secondary" onClick={()=>navigate('/products')}>Hủy</button><button className="primary" disabled={saving}>{saving ? 'Đang lưu…' : isEdit ? 'Lưu thay đổi' : 'Tạo sản phẩm'}</button></div>
+      <div className="product-editor-footer"><button type="button" className="secondary" onClick={()=>navigate('/products')}>Hủy</button><button className="primary" disabled={saving}>{saving ? 'Đang lưu…' : form.is_published ? (isEdit ? 'Lưu và cập nhật website' : 'Tạo và đăng bán') : 'Lưu nháp'}</button></div>
     </form>
   </>
 }
