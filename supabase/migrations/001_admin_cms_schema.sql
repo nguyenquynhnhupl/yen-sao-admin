@@ -153,3 +153,13 @@ grant select on public.order_items to authenticated;
 
 -- After creating an admin user under Supabase Authentication, grant CMS access:
 -- insert into public.admin_users (user_id) values ('PASTE_AUTH_USER_UUID_HERE');
+
+
+-- Product promotions and optional Flash Deal schedule.
+alter table public.products add column if not exists promotion_type text check (promotion_type is null or promotion_type in ('percent','amount'));
+alter table public.products add column if not exists promotion_value numeric(14,0);
+alter table public.products add column if not exists promotion_start_at timestamptz;
+alter table public.products add column if not exists promotion_end_at timestamptz;
+alter table public.products add column if not exists is_flash_deal boolean not null default false;
+alter table public.products add column if not exists flash_deal_start_at timestamptz;
+alter table public.products add column if not exists flash_deal_end_at timestamptz;
