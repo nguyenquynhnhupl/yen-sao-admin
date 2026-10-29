@@ -14,14 +14,17 @@ export type Product = {
   slug: string;
   description: string | null;
   price: number;
-  compare_at_price: number | null;
   image_url: string | null;
   category_id: string | null;
   stock: number;
   is_published: boolean;
-  is_flash_sale?: boolean;
-  flash_sale_start_at?: string | null;
-  flash_sale_end_at?: string | null;
+  promotion_type?: 'percent' | 'amount' | null;
+  promotion_value?: number | null;
+  promotion_start_at?: string | null;
+  promotion_end_at?: string | null;
+  is_flash_deal?: boolean;
+  flash_deal_start_at?: string | null;
+  flash_deal_end_at?: string | null;
   created_at?: string;
 };
 
