@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Activity, BookOpen, ChartNoAxesCombined, Image, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, Tags, X, House, Upload } from 'lucide-react'
 import { isSupabaseConfigured, requireSupabase, supabase } from './lib/supabase'
 import type { Article, Banner, Category, Order, Product } from './types'
@@ -78,6 +78,8 @@ function App() {
         <Route path="/" element={<Dashboard/>}/>
         <Route path="/homepage" element={<Homepage/>}/>
         <Route path="/products" element={<Products/>}/>
+        <Route path="/products/new" element={<ProductEditor/>}/>
+        <Route path="/products/:productId/edit" element={<ProductEditor/>}/>
         <Route path="/promotions" element={<Promotions/>}/>
         <Route path="/categories" element={<Categories/>}/>
         <Route path="/banners" element={<Banners/>}/>
@@ -145,6 +147,7 @@ function Dashboard() {
 }
 function slugify(s: string) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') }
 function Products() {
+  const navigate = useNavigate()
   const { rows, loading, error, refresh } = useTable<Product>('products')
   const { rows: categories } = useTable<Category>('categories')
   const [search, setSearch] = useState(''), [modal, setModal] = useState(false), [edit, setEdit] = useState<Product | null>(null), [saving, setSaving] = useState(false), [message, setMessage] = useState('')
@@ -190,11 +193,11 @@ function Products() {
   }
   async function remove(item: Product) { if (!confirm(`Xóa sản phẩm "${item.name}"?`)) return; const {error:e}=await requireSupabase().from('products').delete().eq('id',item.id); if(e) alert(e.message); else refresh() }
   const filtered = rows.filter(x => x.name.toLowerCase().includes(search.toLowerCase()))
-  return <><PageHeading title="Sản phẩm" description="Quản lý thông tin sản phẩm và chương trình khuyến mãi." action={<button className="primary" onClick={()=>open()}><span>＋</span> Thêm sản phẩm</button>}/>
+  return <><PageHeading title="Sản phẩm" description="Quản lý thông tin sản phẩm và chương trình khuyến mãi." action={<button className="primary" onClick={()=>navigate("/products/new")}><span>＋</span> Thêm sản phẩm</button>}/>
     <div className="toolbar"><div className="searchbox"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm theo tên sản phẩm…"/></div><span className="muted small">{rows.length} sản phẩm</span></div>
     {error && <div className="notice error">{error}</div>}
     <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>SẢN PHẨM</th><th>GIÁ BÁN</th><th>KHUYẾN MÃI</th><th>TỒN KHO</th><th>TRẠNG THÁI</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
-    {loading ? <tr><td colSpan={6} className="empty">Đang tải dữ liệu…</td></tr> : filtered.length===0 ? <tr><td colSpan={6} className="empty">Chưa có sản phẩm. Nhấn “Thêm sản phẩm” để bắt đầu.</td></tr> : filtered.map(x=><tr key={x.id}><td><div className="product-cell">{x.image_url ? <img src={x.image_url} alt=""/> : <div className="image-placeholder"><Package size={18}/></div>}<div><b>{x.name}</b><small>{x.slug}</small></div></div></td><td>{Number(x.price).toLocaleString('vi-VN')} đ</td><td>{x.promotion_type && x.promotion_value != null ? (x.promotion_type==='percent' ? `-${x.promotion_value}%` : `-${Number(x.promotion_value).toLocaleString('vi-VN')} đ`) : '—'}{x.is_flash_deal && <small>Flash Deal</small>}</td><td>{x.stock}</td><td><span className={`pill ${x.is_published?'pill-green':'pill-gray'}`}>{x.is_published?'Đang hiển thị':'Bản nháp'}</span></td><td><div className="row-actions"><button className="text-btn" onClick={()=>open(x)}>Sửa</button><button className="text-btn danger-text" onClick={()=>remove(x)}>Xóa</button></div></td></tr>)}
+    {loading ? <tr><td colSpan={6} className="empty">Đang tải dữ liệu…</td></tr> : filtered.length===0 ? <tr><td colSpan={6} className="empty">Chưa có sản phẩm. Nhấn “Thêm sản phẩm” để bắt đầu.</td></tr> : filtered.map(x=><tr key={x.id}><td><div className="product-cell">{x.image_url ? <img src={x.image_url} alt=""/> : <div className="image-placeholder"><Package size={18}/></div>}<div><b>{x.name}</b><small>{x.slug}</small></div></div></td><td>{Number(x.price).toLocaleString('vi-VN')} đ</td><td>{x.promotion_type && x.promotion_value != null ? (x.promotion_type==='percent' ? `-${x.promotion_value}%` : `-${Number(x.promotion_value).toLocaleString('vi-VN')} đ`) : '—'}{x.is_flash_deal && <small>Flash Deal</small>}</td><td>{x.stock}</td><td><span className={`pill ${x.is_published?'pill-green':'pill-gray'}`}>{x.is_published?'Đang hiển thị':'Bản nháp'}</span></td><td><div className="row-actions"><button className="text-btn" onClick={()=>navigate("/products/" + x.id + "/edit")}>Chi tiết</button><button className="text-btn danger-text" onClick={()=>remove(x)}>Xóa</button></div></td></tr>)}
     </tbody></table></div></div>
     {modal && <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(false)}}><form className="modal" onSubmit={save}><div className="modal-head"><div><h2>{edit?'Chỉnh sửa sản phẩm':'Thêm sản phẩm'}</h2><p className="muted">Thông tin cơ bản của sản phẩm.</p></div><button type="button" className="icon-btn" onClick={()=>setModal(false)}><X size={19}/></button></div>
       <div className="form-grid">
@@ -212,6 +215,73 @@ function Products() {
   </>
 }
 
+function ProductEditor() {
+  const navigate = useNavigate()
+  const { productId } = useParams()
+  const isEdit = Boolean(productId)
+  const { rows: categories } = useTable<Category>('categories')
+  const [loading, setLoading] = useState(isEdit)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState({ name:'', slug:'', description:'', price:'', image_url:'', category_id:'', stock:'0', is_published:false })
+  useEffect(() => {
+    let active = true
+    async function load() {
+      if (!productId) return
+      setLoading(true); setError('')
+      try {
+        const { data, error: e } = await requireSupabase().from('products').select('*').eq('id', productId).single()
+        if (e) throw e
+        if (active && data) setForm({ name:data.name ?? '', slug:data.slug ?? '', description:data.description ?? '', price:String(data.price ?? ''), image_url:data.image_url ?? '', category_id:data.category_id ?? '', stock:String(data.stock ?? 0), is_published:Boolean(data.is_published) })
+      } catch (err) { if (active) setError(err instanceof Error ? err.message : 'Không tải được sản phẩm.') }
+      finally { if (active) setLoading(false) }
+    }
+    void load()
+    return () => { active = false }
+  }, [productId])
+  async function save(e: FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      if (!form.name.trim()) throw new Error('Vui lòng nhập tên sản phẩm.')
+      if (form.price === '' || Number(form.price) < 0) throw new Error('Giá bán không hợp lệ.')
+      if (Number(form.stock) < 0) throw new Error('Tồn kho không được âm.')
+      const payload = { name:form.name.trim(), slug:form.slug.trim() || slugify(form.name), description:form.description.trim() || null, price:Number(form.price), image_url:form.image_url.trim() || null, category_id:form.category_id || null, stock:Number(form.stock), is_published:form.is_published }
+      const q = requireSupabase().from('products')
+      const result = productId ? await q.update(payload).eq('id',productId) : await q.insert(payload)
+      if (result.error) throw result.error
+      navigate('/products')
+    } catch (err) { setError(err instanceof Error ? err.message : 'Lưu sản phẩm thất bại.') }
+    finally { setSaving(false) }
+  }
+  if (loading) return <div className="loading">Đang tải thông tin sản phẩm…</div>
+  return <>
+    <div className="editor-breadcrumb"><button className="text-btn" type="button" onClick={()=>navigate('/products')}>← Quay lại danh sách</button><span className="muted">/ {isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'}</span></div>
+    <PageHeading title={isEdit ? 'Chi tiết sản phẩm' : 'Thêm sản phẩm mới'} description="Cập nhật thông tin sản phẩm hiển thị trên website." action={<span className={form.is_published ? 'pill pill-green' : 'pill pill-gray'}>{form.is_published ? 'Đang xuất bản' : 'Bản nháp'}</span>} />
+    {error && <div className="notice error">{error}</div>}
+    <form className="product-editor-layout" onSubmit={save}>
+      <div className="product-editor-main">
+        <section className="content-card editor-section"><div className="editor-section-heading"><span className="editor-step">01</span><div><h3>Thông tin cơ bản</h3><p className="muted">Tên sản phẩm và nội dung giới thiệu.</p></div></div>
+          <label>Tên sản phẩm *<input required value={form.name} onChange={e=>setForm({...form,name:e.target.value,slug:form.slug || slugify(e.target.value)})} placeholder="Ví dụ: Yến tinh chế nguyên tổ"/></label>
+          <label>Slug URL<input value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})} placeholder="yen-tinh-che-nguyen-to"/><small className="muted">Dùng trong đường dẫn sản phẩm.</small></label>
+          <label>Mô tả sản phẩm<textarea rows={6} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Mô tả chất lượng, quy cách và cách sử dụng…"/></label>
+        </section>
+        <section className="content-card editor-section"><div className="editor-section-heading"><span className="editor-step">02</span><div><h3>Hình ảnh sản phẩm</h3><p className="muted">Tải ảnh lên hoặc dán đường dẫn hình ảnh.</p></div></div><ImageUrlInput value={form.image_url} onChange={value=>setForm({...form,image_url:value})}/></section>
+      </div>
+      <div className="product-editor-side">
+        <section className="content-card editor-section"><div className="editor-section-heading"><span className="editor-step">03</span><div><h3>Giá và kho hàng</h3><p className="muted">Thông tin bán hàng.</p></div></div>
+          <label>Giá bán (VNĐ) *<input required min="0" type="number" value={form.price} onChange={e=>setForm({...form,price:e.target.value})} placeholder="0"/></label>
+          <label>Tồn kho<input required min="0" type="number" value={form.stock} onChange={e=>setForm({...form,stock:e.target.value})}/></label>
+          <label>Danh mục<select value={form.category_id} onChange={e=>setForm({...form,category_id:e.target.value})}><option value="">Chưa chọn</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        </section>
+        <section className="content-card editor-section"><div className="editor-section-heading"><span className="editor-step">04</span><div><h3>Trạng thái website</h3><p className="muted">Kiểm soát việc xuất bản.</p></div></div>
+          <label className="publish-toggle"><span><b>Hiển thị sản phẩm</b><small className="muted">Cho phép khách hàng xem sản phẩm trên website.</small></span><input type="checkbox" checked={form.is_published} onChange={e=>setForm({...form,is_published:e.target.checked})}/></label>
+          <div className="notice">Cài đặt giảm giá và Flash Deal được quản lý riêng tại trang <Link to="/promotions"><b>Khuyến mãi</b></Link>.</div>
+        </section>
+      </div>
+      <div className="product-editor-footer"><button type="button" className="secondary" onClick={()=>navigate('/products')}>Hủy</button><button className="primary" disabled={saving}>{saving ? 'Đang lưu…' : isEdit ? 'Lưu thay đổi' : 'Tạo sản phẩm'}</button></div>
+    </form>
+  </>
+}
 
 function Promotions() {
   const { rows, loading, error, refresh } = useTable<Product>('products')
