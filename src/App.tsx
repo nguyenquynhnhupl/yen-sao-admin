@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, ChartNoAxesCombined, Image, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, Tags, X, House } from 'lucide-react'
+import { Activity, BookOpen, ChartNoAxesCombined, Image, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, Tags, X, House, Upload } from 'lucide-react'
 import { isSupabaseConfigured, requireSupabase, supabase } from './lib/supabase'
 import type { Article, Banner, Category, Order, Product } from './types'
 import { Homepage } from './Homepage'
