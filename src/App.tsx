@@ -330,6 +330,24 @@ type PromotionProgram = {
   promotion_value: number; start_at: string; end_at: string; daily_start_time: string | null; daily_end_time: string | null; daily_time_slots?: string[] | null; is_flash_deal: boolean;
   flash_start_at: string | null; flash_end_at: string | null; is_active: boolean; created_at?: string;
 }
+function TimePicker24({ value, onChange }: { value: string; onChange: (nextValue: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [hour = '00', minute = '00'] = value.split(':')
+  const hourOptions = Array.from({length:24},(_,i)=>String(i).padStart(2,'0'))
+  const minuteOptions = Array.from({length:60},(_,i)=>String(i).padStart(2,'0'))
+  return <div style={{position:'relative'}}>
+    <button type="button" className="secondary" style={{width:'100%',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}} onClick={()=>setOpen(v=>!v)}>
+      <span style={{fontVariantNumeric:'tabular-nums',fontWeight:600}}>{value.replace(':',' : ')}</span><span aria-hidden="true">▾</span>
+    </button>
+    {open&&<div style={{position:'absolute',zIndex:30,top:'calc(100% + 6px)',left:0,minWidth:220,padding:12,background:'#fff',border:'1px solid #e5e0d8',borderRadius:10,boxShadow:'0 8px 24px rgba(0,0,0,.12)'}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+        <label>Giờ<select value={hour} onChange={e=>onChange(e.target.value+':'+minute)} style={{width:'100%'}}>{hourOptions.map(h=><option key={h} value={h}>{h}</option>)}</select></label>
+        <label>Phút<select value={minute} onChange={e=>onChange(hour+':'+e.target.value)} style={{width:'100%'}}>{minuteOptions.map(m=><option key={m} value={m}>{m}</option>)}</select></label>
+      </div>
+      <button type="button" className="primary" style={{width:'100%',marginTop:10}} onClick={()=>setOpen(false)}>Xong</button>
+    </div>}
+  </div>
+}
 function Promotions() {
   const { rows: programs, loading, error, refresh } = useTable<PromotionProgram>('promotions')
   const { rows: products } = useTable<Product>('products')
@@ -424,9 +442,6 @@ function Promotions() {
   }
   const filtered=programs.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()))
   const available=products.filter(p=>p.is_published&&!linkedIds.includes(p.id)&&!assignedIds.includes(p.id)&&p.name.toLowerCase().includes(productSearch.toLowerCase()))
-  function renderTimePicker(value: string, onChange: (nextValue: string) => void) {
-    return <input type="time" step={60} required value={value} onChange={e=>onChange(e.target.value)} />
-  }
   const quickSlots = [
     { label: 'Buổi sáng', value: '07:00-10:00' },
     { label: 'Buổi trưa', value: '12:00-13:00' },
@@ -474,8 +489,8 @@ function Promotions() {
                 <button type="button" className="text-btn danger-text" disabled={dailySlots.length===1} onClick={()=>setDailySlots(old=>old.filter((_,i)=>i!==index))}>Xóa khung</button>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                <label>Giờ bắt đầu{renderTimePicker(slotStart??'07:00',value=>updateDailySlot(index,'start',value))}</label>
-                <label>Giờ kết thúc{renderTimePicker(slotEnd??'10:00',value=>updateDailySlot(index,'end',value))}</label>
+                <label>Giờ bắt đầu<TimePicker24 value={slotStart??'07:00'} onChange={value=>updateDailySlot(index,'start',value)}/></label>
+                <label>Giờ kết thúc<TimePicker24 value={slotEnd??'10:00'} onChange={value=>updateDailySlot(index,'end',value)}/></label>
               </div>
             </div>})}
           </div>
