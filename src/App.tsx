@@ -342,10 +342,9 @@ function Promotions() {
   const [name,setName]=useState(''), [description,setDescription]=useState('')
   const [type,setType]=useState<'percent'|'amount'>('percent'), [value,setValue]=useState('')
   const [start,setStart]=useState(''), [end,setEnd]=useState('')
-  const [flash,setFlash]=useState(false), [flashStart,setFlashStart]=useState(''), [flashEnd,setFlashEnd]=useState('')
   const [busy,setBusy]=useState(false), [message,setMessage]=useState('')
   useEffect(()=>{let cancelled=false;requireSupabase().from('promotion_products').select('promotion_id').then(({data,error:e})=>{if(cancelled)return;if(e){console.error(e.message);return}const next:Record<string,number>={};(data??[]).forEach((row:{promotion_id:string})=>{next[row.promotion_id]=(next[row.promotion_id]??0)+1});setProductCounts(next)});return()=>{cancelled=true}},[programs])
-  function reset(){setName('');setDescription('');setType('percent');setValue('');setStart('');setEnd('');setFlash(false);setFlashStart('');setFlashEnd('');setMessage('');setEditingId(null)}
+  function reset(){setName('');setDescription('');setType('percent');setValue('');setStart('');setEnd('');setMessage('');setEditingId(null)}
   function toLocalDateTime(value:string|null|undefined){
     if(!value)return ''
     const date=new Date(value)
@@ -358,7 +357,6 @@ function Promotions() {
     setName(p.name);setDescription(p.description??'')
     setType(p.promotion_type);setValue(String(p.promotion_value))
     setStart(toLocalDateTime(p.start_at));setEnd(toLocalDateTime(p.end_at))
-    setFlash(Boolean(p.is_flash_deal));setFlashStart(toLocalDateTime(p.flash_start_at));setFlashEnd(toLocalDateTime(p.flash_end_at))
   }
   function discountLabel(p:PromotionProgram){return p.promotion_type==='percent'?'-'+p.promotion_value+'%':'-'+Number(p.promotion_value).toLocaleString('vi-VN')+' đ'}
   async function openProgram(p:PromotionProgram){
@@ -382,11 +380,10 @@ function Promotions() {
       if(!name.trim())throw new Error('Vui lòng nhập tên chương trình.')
       if(!value||Number(value)<=0||!start||!end||new Date(end)<=new Date(start))throw new Error('Mức giảm và thời gian áp dụng chưa hợp lệ.')
       if(type==='percent'&&Number(value)>100)throw new Error('Phần trăm giảm không được vượt quá 100%.')
-      if(flash&&(!flashStart||!flashEnd||new Date(flashEnd)<=new Date(flashStart)))throw new Error('Vui lòng nhập khung giờ Flash Sale hợp lệ.')
       const payload={
         name:name.trim(),description:description.trim()||null,promotion_type:type,promotion_value:Number(value),
-        start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),is_flash_deal:flash,
-        flash_start_at:flash?new Date(flashStart).toISOString():null,flash_end_at:flash?new Date(flashEnd).toISOString():null
+        start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),is_flash_deal:true,
+        flash_start_at:new Date(start).toISOString(),flash_end_at:new Date(end).toISOString()
       }
       const query=editingId
         ? await requireSupabase().from('promotions').update(payload).eq('id',editingId)
@@ -443,8 +440,6 @@ function Promotions() {
         <label>{type==='percent'?'Phần trăm giảm (%)':'Số tiền giảm (VNĐ)'}<input required type="number" min="1" max={type==='percent'?100:undefined} value={value} onChange={e=>setValue(e.target.value)}/></label>
         <label>Bắt đầu<input required type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/></label>
         <label>Kết thúc<input required type="datetime-local" min={start||undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
-        <label className="check-label span-2"><input type="checkbox" checked={flash} onChange={e=>setFlash(e.target.checked)}/> Đánh dấu chương trình là Flash Sale</label>
-        {flash&&<><label>Flash Sale bắt đầu<input required type="datetime-local" value={flashStart} onChange={e=>setFlashStart(e.target.value)}/></label><label>Flash Sale kết thúc<input required type="datetime-local" min={flashStart||undefined} value={flashEnd} onChange={e=>setFlashEnd(e.target.value)}/></label></>}
       </div>
       {message&&<div className="notice error">{message}</div>}
       <div className="modal-actions"><button type="button" className="secondary" onClick={()=>{setCreating(false);reset()}}>Hủy</button><button className="primary" disabled={busy}>{busy?'Đang lưu…':editingId?'Lưu thay đổi':'Tạo chương trình'}</button></div>
