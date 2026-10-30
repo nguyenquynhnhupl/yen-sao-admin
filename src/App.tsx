@@ -334,6 +334,7 @@ function Promotions() {
   const { rows: programs, loading, error, refresh } = useTable<PromotionProgram>('promotions')
   const { rows: products } = useTable<Product>('products')
   const [search,setSearch]=useState(''), [creating,setCreating]=useState(false)
+  const [productCounts,setProductCounts]=useState<Record<string,number>>({})
   const [selected,setSelected]=useState<PromotionProgram|null>(null)
   const [assigned,setAssigned]=useState<Product[]>([]), [assignedIds,setAssignedIds]=useState<string[]>([])
   const [linkedIds,setLinkedIds]=useState<string[]>([]), [picked,setPicked]=useState<string[]>([])
@@ -343,6 +344,7 @@ function Promotions() {
   const [start,setStart]=useState(''), [end,setEnd]=useState('')
   const [flash,setFlash]=useState(false), [flashStart,setFlashStart]=useState(''), [flashEnd,setFlashEnd]=useState('')
   const [busy,setBusy]=useState(false), [message,setMessage]=useState('')
+  useEffect(()=>{let cancelled=false;requireSupabase().from('promotion_products').select('promotion_id').then(({data,error:e})=>{if(cancelled)return;if(e){console.error(e.message);return}const next:Record<string,number>={};(data??[]).forEach((row:{promotion_id:string})=>{next[row.promotion_id]=(next[row.promotion_id]??0)+1});setProductCounts(next)});return()=>{cancelled=true}},[programs])
   function reset(){setName('');setDescription('');setType('percent');setValue('');setStart('');setEnd('');setFlash(false);setFlashStart('');setFlashEnd('');setMessage('')}
   function discountLabel(p:PromotionProgram){return p.promotion_type==='percent'?'-'+p.promotion_value+'%':'-'+Number(p.promotion_value).toLocaleString('vi-VN')+' đ'}
   async function openProgram(p:PromotionProgram){
@@ -407,10 +409,10 @@ function Promotions() {
     <div className="page-heading"><div><h1>Khuyến mãi</h1><p className="muted">Tạo chương trình trước, sau đó thêm nhiều sản phẩm cùng áp dụng một mức giảm.</p></div><button className="primary" onClick={()=>{reset();setCreating(true)}}><Plus size={15}/> Tạo chương trình</button></div>
     <div className="toolbar"><div className="searchbox"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm chương trình khuyến mãi…"/></div><span className="muted small">{programs.length} chương trình</span></div>
     {error&&<div className="notice error">{error}</div>}
-    <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>TÊN CHƯƠNG TRÌNH</th><th>MỨC GIẢM CHUNG</th><th>THỜI GIAN ÁP DỤNG</th><th>TRẠNG THÁI</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
-      {loading?<tr><td colSpan={5} className="empty">Đang tải chương trình…</td></tr>:filtered.length===0?<tr><td colSpan={5} className="empty">Chưa có chương trình khuyến mãi.</td></tr>:filtered.map(p=><tr key={p.id}>
+    <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>TÊN CHƯƠNG TRÌNH</th><th>MỨC GIẢM CHUNG</th><th>THỜI GIAN ÁP DỤNG</th><th>SẢN PHẨM</th><th>TRẠNG THÁI</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
+      {loading?<tr><td colSpan={6} className="empty">Đang tải chương trình…</td></tr>:filtered.length===0?<tr><td colSpan={5} className="empty">Chưa có chương trình khuyến mãi.</td></tr>:filtered.map(p=><tr key={p.id}>
         <td><b>{p.name}</b>{p.is_flash_deal&&<small>⚡ Flash Sale</small>}</td><td><b>{discountLabel(p)}</b></td>
-        <td><small>{new Date(p.start_at).toLocaleString('vi-VN')}</small><small>đến {new Date(p.end_at).toLocaleString('vi-VN')}</small></td>
+        <td><small>{new Date(p.start_at).toLocaleString('vi-VN')}</small><small>đến {new Date(p.end_at).toLocaleString('vi-VN')}</small></td><td>{productCounts[p.id]??0} sản phẩm</td>
         <td><span className={'pill '+(p.is_active?'pill-green':'pill-gray')}>{p.is_active?'Đang bật':'Đang tắt'}</span></td>
         <td><div className="row-actions"><button className="text-btn" onClick={()=>void openProgram(p)}>Quản lý sản phẩm</button><button className="text-btn" onClick={()=>void toggleProgram(p)}>{p.is_active?'Tắt':'Bật'}</button><button className="text-btn danger-text" onClick={()=>void deleteProgram(p)}>Xóa</button></div></td>
       </tr>)}
