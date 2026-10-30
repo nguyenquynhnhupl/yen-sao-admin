@@ -333,7 +333,7 @@ type PromotionProgram = {
 function Promotions() {
   const { rows: programs, loading, error, refresh } = useTable<PromotionProgram>('promotions')
   const { rows: products } = useTable<Product>('products')
-  const [search,setSearch]=useState(''), [creating,setCreating]=useState(false)
+  const [search,setSearch]=useState(''), [creating,setCreating]=useState(false), [editingId,setEditingId]=useState<string|null>(null)
   const [productCounts,setProductCounts]=useState<Record<string,number>>({})
   const [selected,setSelected]=useState<PromotionProgram|null>(null)
   const [assigned,setAssigned]=useState<Product[]>([]), [assignedIds,setAssignedIds]=useState<string[]>([])
@@ -345,7 +345,21 @@ function Promotions() {
   const [flash,setFlash]=useState(false), [flashStart,setFlashStart]=useState(''), [flashEnd,setFlashEnd]=useState('')
   const [busy,setBusy]=useState(false), [message,setMessage]=useState('')
   useEffect(()=>{let cancelled=false;requireSupabase().from('promotion_products').select('promotion_id').then(({data,error:e})=>{if(cancelled)return;if(e){console.error(e.message);return}const next:Record<string,number>={};(data??[]).forEach((row:{promotion_id:string})=>{next[row.promotion_id]=(next[row.promotion_id]??0)+1});setProductCounts(next)});return()=>{cancelled=true}},[programs])
-  function reset(){setName('');setDescription('');setType('percent');setValue('');setStart('');setEnd('');setFlash(false);setFlashStart('');setFlashEnd('');setMessage('')}
+  function reset(){setName('');setDescription('');setType('percent');setValue('');setStart('');setEnd('');setFlash(false);setFlashStart('');setFlashEnd('');setMessage('');setEditingId(null)}
+  function toLocalDateTime(value:string|null|undefined){
+    if(!value)return ''
+    const date=new Date(value)
+    if(Number.isNaN(date.getTime()))return ''
+    const local=new Date(date.getTime()-date.getTimezoneOffset()*60000)
+    return local.toISOString().slice(0,16)
+  }
+  function editProgram(p:PromotionProgram){
+    setEditingId(p.id);setCreating(true);setMessage('')
+    setName(p.name);setDescription(p.description??'')
+    setType(p.promotion_type);setValue(String(p.promotion_value))
+    setStart(toLocalDateTime(p.start_at));setEnd(toLocalDateTime(p.end_at))
+    setFlash(Boolean(p.is_flash_deal));setFlashStart(toLocalDateTime(p.flash_start_at));setFlashEnd(toLocalDateTime(p.flash_end_at))
+  }
   function discountLabel(p:PromotionProgram){return p.promotion_type==='percent'?'-'+p.promotion_value+'%':'-'+Number(p.promotion_value).toLocaleString('vi-VN')+' đ'}
   async function openProgram(p:PromotionProgram){
     setSelected(p);setMessage('');setPicked([]);setProductSearch('')
@@ -369,12 +383,15 @@ function Promotions() {
       if(!value||Number(value)<=0||!start||!end||new Date(end)<=new Date(start))throw new Error('Mức giảm và thời gian áp dụng chưa hợp lệ.')
       if(type==='percent'&&Number(value)>100)throw new Error('Phần trăm giảm không được vượt quá 100%.')
       if(flash&&(!flashStart||!flashEnd||new Date(flashEnd)<=new Date(flashStart)))throw new Error('Vui lòng nhập khung giờ Flash Sale hợp lệ.')
-      const {error:e2}=await requireSupabase().from('promotions').insert({
+      const payload={
         name:name.trim(),description:description.trim()||null,promotion_type:type,promotion_value:Number(value),
         start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),is_flash_deal:flash,
-        flash_start_at:flash?new Date(flashStart).toISOString():null,flash_end_at:flash?new Date(flashEnd).toISOString():null,is_active:true
-      })
-      if(e2)throw e2
+        flash_start_at:flash?new Date(flashStart).toISOString():null,flash_end_at:flash?new Date(flashEnd).toISOString():null
+      }
+      const query=editingId
+        ? await requireSupabase().from('promotions').update(payload).eq('id',editingId)
+        : await requireSupabase().from('promotions').insert({...payload,is_active:true})
+      if(query.error)throw query.error
       setCreating(false);reset();await refresh()
     }catch(err){setMessage(err instanceof Error?err.message:'Không tạo được chương trình.')}
     finally{setBusy(false)}
@@ -414,11 +431,11 @@ function Promotions() {
         <td><b>{p.name}</b>{p.is_flash_deal&&<small>⚡ Flash Sale</small>}</td><td><b>{discountLabel(p)}</b></td>
         <td><small>{new Date(p.start_at).toLocaleString('vi-VN')}</small><small>đến {new Date(p.end_at).toLocaleString('vi-VN')}</small></td><td>{productCounts[p.id]??0} sản phẩm</td>
         <td><span className={'pill '+(p.is_active?'pill-green':'pill-gray')}>{p.is_active?'Đang bật':'Đang tắt'}</span></td>
-        <td><div className="row-actions"><button className="text-btn" onClick={()=>void openProgram(p)}>Quản lý sản phẩm</button><button className="text-btn" onClick={()=>void toggleProgram(p)}>{p.is_active?'Tắt':'Bật'}</button><button className="text-btn danger-text" onClick={()=>void deleteProgram(p)}>Xóa</button></div></td>
+        <td><div className="row-actions"><button className="text-btn" onClick={()=>editProgram(p)}>Chỉnh sửa</button><button className="text-btn" onClick={()=>void openProgram(p)}>Quản lý sản phẩm</button><button className="text-btn" onClick={()=>void toggleProgram(p)}>{p.is_active?'Tắt':'Bật'}</button><button className="text-btn danger-text" onClick={()=>void deleteProgram(p)}>Xóa</button></div></td>
       </tr>)}
     </tbody></table></div></div>
     {creating&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setCreating(false)}}><form className="modal" onSubmit={createProgram}>
-      <div className="modal-head"><div><p className="eyebrow">CHƯƠNG TRÌNH ƯU ĐÃI</p><h2>Tạo khuyến mãi mới</h2><p className="muted">Mức giảm và thời gian này áp dụng chung cho mọi sản phẩm được thêm vào.</p></div><button type="button" className="icon-btn" onClick={()=>setCreating(false)}><X size={19}/></button></div>
+      <div className="modal-head"><div><p className="eyebrow">CHƯƠNG TRÌNH ƯU ĐÃI</p><h2>{editingId?'Chỉnh sửa chương trình':'Tạo khuyến mãi mới'}</h2><p className="muted">Mức giảm và thời gian này áp dụng chung cho mọi sản phẩm được thêm vào.</p></div><button type="button" className="icon-btn" onClick={()=>{setCreating(false);reset()}}><X size={19}/></button></div>
       <div className="form-grid">
         <label className="span-2">Tên chương trình *<input required value={name} onChange={e=>setName(e.target.value)} placeholder="Ví dụ: Sale cuối năm"/></label>
         <label className="span-2">Mô tả<input value={description} onChange={e=>setDescription(e.target.value)} placeholder="Thông tin ngắn về chương trình"/></label>
@@ -430,7 +447,7 @@ function Promotions() {
         {flash&&<><label>Flash Sale bắt đầu<input required type="datetime-local" value={flashStart} onChange={e=>setFlashStart(e.target.value)}/></label><label>Flash Sale kết thúc<input required type="datetime-local" min={flashStart||undefined} value={flashEnd} onChange={e=>setFlashEnd(e.target.value)}/></label></>}
       </div>
       {message&&<div className="notice error">{message}</div>}
-      <div className="modal-actions"><button type="button" className="secondary" onClick={()=>setCreating(false)}>Hủy</button><button className="primary" disabled={busy}>{busy?'Đang lưu…':'Tạo chương trình'}</button></div>
+      <div className="modal-actions"><button type="button" className="secondary" onClick={()=>{setCreating(false);reset()}}>Hủy</button><button className="primary" disabled={busy}>{busy?'Đang lưu…':editingId?'Lưu thay đổi':'Tạo chương trình'}</button></div>
     </form></div>}
     {selected&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setSelected(null);setShowPicker(false)}}}><section className="modal">
       <div className="modal-head"><div><p className="eyebrow">QUẢN LÝ CHƯƠNG TRÌNH</p><h2>{selected.name}</h2><p className="muted">Mức giảm chung: <b>{discountLabel(selected)}</b> · {new Date(selected.start_at).toLocaleDateString('vi-VN')} – {new Date(selected.end_at).toLocaleDateString('vi-VN')}</p></div><button type="button" className="icon-btn" onClick={()=>setSelected(null)}><X size={19}/></button></div>
