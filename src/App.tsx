@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, useRef, type FormEvent } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Activity, BookOpen, ChartNoAxesCombined, Image, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, Tags, X, House, Upload } from 'lucide-react'
+import { Activity, BookOpen, ChartNoAxesCombined, Image, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, Tags, X, House, Upload, Bold, Italic, Underline, List, ListOrdered } from 'lucide-react'
 import { isSupabaseConfigured, requireSupabase, supabase } from './lib/supabase'
 import type { Article, Banner, Category, Order, Product } from './types'
 import { Homepage } from './Homepage'
@@ -218,6 +218,27 @@ function Products() {
 }
 
 
+function RichTextEditor({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const editorRef = useRef<HTMLDivElement>(null)
+  const initialized = useRef(false)
+  useEffect(() => { if (editorRef.current && !initialized.current) { editorRef.current.innerHTML = value || ''; initialized.current = true } }, [value])
+  function run(command: string, arg?: string) { editorRef.current?.focus(); document.execCommand(command, false, arg); if (editorRef.current) onChange(editorRef.current.innerHTML) }
+  return <div style={{border:'1px solid #e5d9c9',borderRadius:10,overflow:'hidden',background:'#fff'}}>
+    <div style={{display:'flex',flexWrap:'wrap',gap:6,padding:8,borderBottom:'1px solid #eee4d8',background:'#fbf7f0'}}>
+      <button type="button" className="secondary" title="In đậm" onClick={()=>run('bold')}><Bold size={16}/></button>
+      <button type="button" className="secondary" title="In nghiêng" onClick={()=>run('italic')}><Italic size={16}/></button>
+      <button type="button" className="secondary" title="Gạch chân" onClick={()=>run('underline')}><Underline size={16}/></button>
+      <button type="button" className="secondary" title="Danh sách" onClick={()=>run('insertUnorderedList')}><List size={16}/></button>
+      <button type="button" className="secondary" title="Danh sách đánh số" onClick={()=>run('insertOrderedList')}><ListOrdered size={16}/></button>
+      <button type="button" className="secondary" onClick={()=>run('formatBlock','h3')}>H3</button>
+      <button type="button" className="secondary" onClick={()=>run('formatBlock','p')}>¶</button>
+      <button type="button" className="secondary" onClick={()=>run('removeFormat')}>Tx</button>
+    </div>
+    <div ref={editorRef} contentEditable suppressContentEditableWarning onInput={e=>onChange(e.currentTarget.innerHTML)} onBlur={e=>onChange(e.currentTarget.innerHTML)} style={{minHeight:160,padding:14,outline:'none',lineHeight:1.8,color:'#514638'}} />
+    <div style={{padding:'7px 12px',borderTop:'1px solid #f0e8de',fontSize:12,color:'#8b7b65'}}>Có thể chèn emoji/icon trực tiếp như ✨ 🌿 ✓ •</div>
+  </div>
+}
+
 function ProductEditor() {
   const navigate = useNavigate()
   const { productId } = useParams()
@@ -283,7 +304,7 @@ function ProductEditor() {
             {detailBlocks.length===0 && <p className="detail-content-empty muted">Chưa có mục chi tiết. Chọn “Thêm văn bản” hoặc “Thêm ảnh”.</p>}
             {detailBlocks.map((block,index)=><div className="detail-content-block" key={block.id}>
               <div className="detail-content-block-top"><b>Mục {index+1} · {block.type==='text'?'Văn bản':'Hình ảnh'}</b><div className="row-actions"><button type="button" className="text-btn" disabled={index===0} onClick={()=>setDetailBlocks(prev=>{const next=[...prev];[next[index-1],next[index]]=[next[index],next[index-1]];return next})}>↑</button><button type="button" className="text-btn" disabled={index===detailBlocks.length-1} onClick={()=>setDetailBlocks(prev=>{const next=[...prev];[next[index+1],next[index]]=[next[index],next[index+1]];return next})}>↓</button><button type="button" className="text-btn danger-text" onClick={()=>setDetailBlocks(prev=>prev.filter(item=>item.id!==block.id))}>Xóa</button></div></div>
-              {block.type==='text' ? <textarea rows={1} className="auto-grow-textarea" value={block.content} ref={el=>{if(el){el.style.height="auto";el.style.height=`${el.scrollHeight}px`}}} onChange={e=>{setDetailBlocks(prev=>prev.map(item=>item.id===block.id?{...item,content:e.target.value}:item));e.currentTarget.style.height="auto";e.currentTarget.style.height=`${e.currentTarget.scrollHeight}px`}} placeholder="Nhập nội dung chi tiết…"/> : <ImageUrlInput value={block.content} onChange={value=>setDetailBlocks(prev=>prev.map(item=>item.id===block.id?{...item,content:value}:item))} placeholder="Chọn ảnh từ máy hoặc nhập URL ảnh"/>}
+              {block.type==='text' ? <RichTextEditor value={block.content} onChange={value=>setDetailBlocks(prev=>prev.map(item=>item.id===block.id?{...item,content:value}:item))}/> : <ImageUrlInput value={block.content} onChange={value=>setDetailBlocks(prev=>prev.map(item=>item.id===block.id?{...item,content:value}:item))} placeholder="Chọn ảnh từ máy hoặc nhập URL ảnh"/>}
             </div>)}
           </div>
         </section>
