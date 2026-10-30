@@ -430,3 +430,17 @@
 .homepage-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin:0 0 18px;padding:0}
 .homepage-toolbar .secondary{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:8px 14px;border-radius:9px}
 @media(max-width:700px){.homepage-toolbar{margin-bottom:14px}}
+
+
+/* Shared promotion program product picker */
+.promotion-picker{margin-top:18px;padding:15px;border:1px solid #e7eee8;border-radius:10px;background:#fafcf9}
+.promotion-picker-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:250px;overflow:auto;margin:10px 0 15px}
+.promotion-picker-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #e8eee9;border-radius:8px;background:#fff;cursor:pointer;min-width:0}
+.promotion-picker-item>input{accent-color:#24563a}
+.promotion-picker-item img,.promotion-picker-item .image-placeholder{width:38px;height:38px;flex:0 0 38px;object-fit:cover;border-radius:7px}
+.promotion-picker-item>span{min-width:0}
+.promotion-picker-item b,.promotion-picker-item small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.promotion-picker-item b{font-size:11px;color:#34453a}
+.promotion-picker-item small{font-size:10px;color:#929d94;margin-top:4px}
+.promotion-picker .modal-actions{margin-top:8px}
+@media(max-width:600px){.promotion-picker-list{grid-template-columns:1fr}.promotion-picker-item{padding:8px}}
