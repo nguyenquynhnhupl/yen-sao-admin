@@ -424,13 +424,23 @@ function Promotions() {
   }
   const filtered=programs.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()))
   const available=products.filter(p=>p.is_published&&!linkedIds.includes(p.id)&&!assignedIds.includes(p.id)&&p.name.toLowerCase().includes(productSearch.toLowerCase()))
-  const timeOptions = Array.from({length: 96}, (_, index) => {
-    const hour = Math.floor(index / 4)
-    const minute = (index % 4) * 15
-    const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
-    const period = hour < 6 ? 'đêm' : hour < 12 ? 'sáng' : hour < 13 ? 'trưa' : hour < 18 ? 'chiều' : 'tối'
-    return { value, label: `${value} (${hour} giờ ${minute ? String(minute).padStart(2, '0') + ' phút' : ''} ${period})`.replace(' giờ  ', ' giờ ') }
-  })
+  const hourOptions = Array.from({length: 24}, (_, hour) => String(hour).padStart(2, '0'))
+  const minuteOptions = Array.from({length: 60}, (_, minute) => String(minute).padStart(2, '0'))
+  function renderTimePicker(value: string, onChange: (nextValue: string) => void) {
+    const [hour = '07', minute = '00'] = value.split(':')
+    return <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+      <label className="small">Giờ
+        <select value={hour} onChange={e=>onChange(e.target.value+':'+minute)}>
+          {hourOptions.map(option=><option key={option} value={option}>{option} giờ</option>)}
+        </select>
+      </label>
+      <label className="small">Phút
+        <select value={minute} onChange={e=>onChange(hour+':'+e.target.value)}>
+          {minuteOptions.map(option=><option key={option} value={option}>{option} phút</option>)}
+        </select>
+      </label>
+    </div>
+  }
   const quickSlots = [
     { label: 'Buổi sáng', value: '07:00-10:00' },
     { label: 'Buổi trưa', value: '12:00-13:00' },
@@ -478,16 +488,8 @@ function Promotions() {
                 <button type="button" className="text-btn danger-text" disabled={dailySlots.length===1} onClick={()=>setDailySlots(old=>old.filter((_,i)=>i!==index))}>Xóa khung</button>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                <label>Giờ bắt đầu
-                  <select required value={slotStart??'07:00'} onChange={e=>updateDailySlot(index,'start',e.target.value)}>
-                    {timeOptions.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}
-                  </select>
-                </label>
-                <label>Giờ kết thúc
-                  <select required value={slotEnd??'10:00'} onChange={e=>updateDailySlot(index,'end',e.target.value)}>
-                    {timeOptions.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}
-                  </select>
-                </label>
+                <div><b className="small">Giờ bắt đầu</b>{renderTimePicker(slotStart??'07:00',value=>updateDailySlot(index,'start',value))}</div>
+                <div><b className="small">Giờ kết thúc</b>{renderTimePicker(slotEnd??'10:00',value=>updateDailySlot(index,'end',value))}</div>
               </div>
             </div>})}
           </div>
