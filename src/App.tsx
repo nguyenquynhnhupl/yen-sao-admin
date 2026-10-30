@@ -385,14 +385,14 @@ function Promotions() {
     try{
       const {error:e}=await requireSupabase().from('promotion_products').insert(picked.map(product_id=>({promotion_id:selected.id,product_id})))
       if(e)throw e
-      setShowPicker(false);setPicked([]);await openProgram(selected)
+      setShowPicker(false);setPicked([]);setProductCounts(old=>({...old,[selected.id]:(old[selected.id]??0)+picked.length}));await openProgram(selected)
     }catch(err){setMessage(err instanceof Error?err.message:'Không thêm được sản phẩm.')}
     finally{setBusy(false)}
   }
   async function removeProduct(p:Product){
     if(!selected||!confirm('Gỡ sản phẩm khỏi chương trình khuyến mãi?'))return
     const {error:e}=await requireSupabase().from('promotion_products').delete().eq('promotion_id',selected.id).eq('product_id',p.id)
-    if(e)setMessage(e.message);else await openProgram(selected)
+    if(e)setMessage(e.message);else{setProductCounts(old=>({...old,[selected.id]:Math.max(0,(old[selected.id]??1)-1)}));await openProgram(selected)}
   }
   async function toggleProgram(p:PromotionProgram){
     const {error:e}=await requireSupabase().from('promotions').update({is_active:!p.is_active}).eq('id',p.id)
