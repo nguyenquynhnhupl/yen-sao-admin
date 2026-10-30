@@ -410,7 +410,7 @@ function Promotions() {
     <div className="toolbar"><div className="searchbox"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm chương trình khuyến mãi…"/></div><span className="muted small">{programs.length} chương trình</span></div>
     {error&&<div className="notice error">{error}</div>}
     <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>TÊN CHƯƠNG TRÌNH</th><th>MỨC GIẢM CHUNG</th><th>THỜI GIAN ÁP DỤNG</th><th>SẢN PHẨM</th><th>TRẠNG THÁI</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
-      {loading?<tr><td colSpan={6} className="empty">Đang tải chương trình…</td></tr>:filtered.length===0?<tr><td colSpan={5} className="empty">Chưa có chương trình khuyến mãi.</td></tr>:filtered.map(p=><tr key={p.id}>
+      {loading?<tr><td colSpan={6} className="empty">Đang tải chương trình…</td></tr>:filtered.length===0?<tr><td colSpan={6} className="empty">Chưa có chương trình khuyến mãi.</td></tr>:filtered.map(p=><tr key={p.id}>
         <td><b>{p.name}</b>{p.is_flash_deal&&<small>⚡ Flash Sale</small>}</td><td><b>{discountLabel(p)}</b></td>
         <td><small>{new Date(p.start_at).toLocaleString('vi-VN')}</small><small>đến {new Date(p.end_at).toLocaleString('vi-VN')}</small></td><td>{productCounts[p.id]??0} sản phẩm</td>
         <td><span className={'pill '+(p.is_active?'pill-green':'pill-gray')}>{p.is_active?'Đang bật':'Đang tắt'}</span></td>
