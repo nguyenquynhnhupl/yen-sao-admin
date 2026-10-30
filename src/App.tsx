@@ -344,7 +344,6 @@ function TimePicker24({ value, onChange }: { value: string; onChange: (nextValue
         <label>Giờ<select value={hour} onChange={e=>onChange(e.target.value+':'+minute)} style={{width:'100%'}}>{hourOptions.map(h=><option key={h} value={h}>{h}</option>)}</select></label>
         <label>Phút<select value={minute} onChange={e=>onChange(hour+':'+e.target.value)} style={{width:'100%'}}>{minuteOptions.map(m=><option key={m} value={m}>{m}</option>)}</select></label>
       </div>
-      <button type="button" className="primary" style={{width:'100%',marginTop:10}} onClick={()=>setOpen(false)}>Xong</button>
     </div>}
   </div>
 }
