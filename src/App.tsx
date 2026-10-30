@@ -325,99 +325,126 @@ function ProductEditor() {
   </>
 }
 
+type PromotionProgram = {
+  id: string; name: string; description: string | null; promotion_type: 'percent' | 'amount';
+  promotion_value: number; start_at: string; end_at: string; is_flash_deal: boolean;
+  flash_start_at: string | null; flash_end_at: string | null; is_active: boolean; created_at?: string;
+}
 function Promotions() {
-  const { rows, loading, error, refresh } = useTable<Product>('products')
-  const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<Product | null>(null)
-  const [enabled, setEnabled] = useState(true)
-  const [type, setType] = useState<'percent' | 'amount'>('percent')
-  const [value, setValue] = useState('')
-  const [start, setStart] = useState('')
-  const [end, setEnd] = useState('')
-  const [flash, setFlash] = useState(false)
-  const [flashStart, setFlashStart] = useState('')
-  const [flashEnd, setFlashEnd] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
-  function localDate(value?: string | null) {
-    if (!value) return ''
-    const d = new Date(value)
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  const { rows: programs, loading, error, refresh } = useTable<PromotionProgram>('promotions')
+  const { rows: products } = useTable<Product>('products')
+  const [search,setSearch]=useState(''), [creating,setCreating]=useState(false)
+  const [selected,setSelected]=useState<PromotionProgram|null>(null)
+  const [assigned,setAssigned]=useState<Product[]>([]), [assignedIds,setAssignedIds]=useState<string[]>([])
+  const [linkedIds,setLinkedIds]=useState<string[]>([]), [picked,setPicked]=useState<string[]>([])
+  const [showPicker,setShowPicker]=useState(false), [productSearch,setProductSearch]=useState('')
+  const [name,setName]=useState(''), [description,setDescription]=useState('')
+  const [type,setType]=useState<'percent'|'amount'>('percent'), [value,setValue]=useState('')
+  const [start,setStart]=useState(''), [end,setEnd]=useState('')
+  const [flash,setFlash]=useState(false), [flashStart,setFlashStart]=useState(''), [flashEnd,setFlashEnd]=useState('')
+  const [busy,setBusy]=useState(false), [message,setMessage]=useState('')
+  function reset(){setName('');setDescription('');setType('percent');setValue('');setStart('');setEnd('');setFlash(false);setFlashStart('');setFlashEnd('');setMessage('')}
+  function discountLabel(p:PromotionProgram){return p.promotion_type==='percent'?'-'+p.promotion_value+'%':'-'+Number(p.promotion_value).toLocaleString('vi-VN')+' đ'}
+  async function openProgram(p:PromotionProgram){
+    setSelected(p);setMessage('');setPicked([]);setProductSearch('')
+    try{
+      const client=requireSupabase()
+      const {data,error:e}=await client.from('promotion_products').select('product_id').eq('promotion_id',p.id)
+      if(e)throw e
+      const ids=(data??[]).map((x:{product_id:string})=>x.product_id);setAssignedIds(ids)
+      const {data:ps,error:pe}=ids.length?await client.from('products').select('*').in('id',ids):{data:[],error:null}
+      if(pe)throw pe
+      setAssigned((ps??[]) as Product[])
+      const {data:all,error:ae}=await client.from('promotion_products').select('product_id')
+      if(ae)throw ae
+      setLinkedIds((all??[]).map((x:{product_id:string})=>x.product_id))
+    }catch(err){setMessage(err instanceof Error?err.message:'Không tải được sản phẩm trong chương trình.')}
   }
-  function openPromotion(p: Product) {
-    setSelected(p)
-    setEnabled(Boolean(p.promotion_type && p.promotion_value != null))
-    setType(p.promotion_type ?? 'percent')
-    setValue(p.promotion_value == null ? '' : String(p.promotion_value))
-    setStart(localDate(p.promotion_start_at))
-    setEnd(localDate(p.promotion_end_at))
-    setFlash(Boolean(p.is_flash_deal))
-    setFlashStart(localDate(p.flash_deal_start_at))
-    setFlashEnd(localDate(p.flash_deal_end_at))
-    setMessage('')
+  async function createProgram(e:FormEvent){
+    e.preventDefault();setBusy(true);setMessage('')
+    try{
+      if(!name.trim())throw new Error('Vui lòng nhập tên chương trình.')
+      if(!value||Number(value)<=0||!start||!end||new Date(end)<=new Date(start))throw new Error('Mức giảm và thời gian áp dụng chưa hợp lệ.')
+      if(type==='percent'&&Number(value)>100)throw new Error('Phần trăm giảm không được vượt quá 100%.')
+      if(flash&&(!flashStart||!flashEnd||new Date(flashEnd)<=new Date(flashStart)))throw new Error('Vui lòng nhập khung giờ Flash Sale hợp lệ.')
+      const {error:e2}=await requireSupabase().from('promotions').insert({
+        name:name.trim(),description:description.trim()||null,promotion_type:type,promotion_value:Number(value),
+        start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),is_flash_deal:flash,
+        flash_start_at:flash?new Date(flashStart).toISOString():null,flash_end_at:flash?new Date(flashEnd).toISOString():null,is_active:true
+      })
+      if(e2)throw e2
+      setCreating(false);reset();await refresh()
+    }catch(err){setMessage(err instanceof Error?err.message:'Không tạo được chương trình.')}
+    finally{setBusy(false)}
   }
-  async function savePromotion(e: FormEvent) {
-    e.preventDefault()
-    if (!selected) return
-    setSaving(true); setMessage('')
-    try {
-      if (enabled && (!value || Number(value) <= 0 || !start || !end || new Date(end) <= new Date(start))) throw new Error('Nhập mức giảm và thời gian khuyến mãi hợp lệ.')
-      if (enabled && type === 'percent' && Number(value) > 100) throw new Error('Phần trăm giảm không được vượt quá 100%.')
-      if (flash && (!enabled || !flashStart || !flashEnd || new Date(flashEnd) <= new Date(flashStart))) throw new Error('Flash Deal cần có khuyến mãi và khung giờ hợp lệ.')
-      const { error: updateError } = await requireSupabase().from('products').update({
-        promotion_type: enabled ? type : null,
-        promotion_value: enabled ? Number(value) : null,
-        promotion_start_at: enabled ? new Date(start).toISOString() : null,
-        promotion_end_at: enabled ? new Date(end).toISOString() : null,
-        is_flash_deal: enabled && flash,
-        flash_deal_start_at: enabled && flash ? new Date(flashStart).toISOString() : null,
-        flash_deal_end_at: enabled && flash ? new Date(flashEnd).toISOString() : null
-      }).eq('id', selected.id)
-      if (updateError) throw updateError
-      setSelected(null); await refresh()
-    } catch (err) { setMessage(err instanceof Error ? err.message : 'Không lưu được khuyến mãi.') }
-    finally { setSaving(false) }
+  async function addProducts(){
+    if(!selected||!picked.length)return
+    setBusy(true);setMessage('')
+    try{
+      const {error:e}=await requireSupabase().from('promotion_products').insert(picked.map(product_id=>({promotion_id:selected.id,product_id})))
+      if(e)throw e
+      setShowPicker(false);setPicked([]);await openProgram(selected)
+    }catch(err){setMessage(err instanceof Error?err.message:'Không thêm được sản phẩm.')}
+    finally{setBusy(false)}
   }
-  const filtered = rows.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
-  const activeCount = rows.filter(p => p.promotion_type && p.promotion_value != null).length
+  async function removeProduct(p:Product){
+    if(!selected||!confirm('Gỡ sản phẩm khỏi chương trình khuyến mãi?'))return
+    const {error:e}=await requireSupabase().from('promotion_products').delete().eq('promotion_id',selected.id).eq('product_id',p.id)
+    if(e)setMessage(e.message);else await openProgram(selected)
+  }
+  async function toggleProgram(p:PromotionProgram){
+    const {error:e}=await requireSupabase().from('promotions').update({is_active:!p.is_active}).eq('id',p.id)
+    if(e)alert(e.message);else void refresh()
+  }
+  async function deleteProgram(p:PromotionProgram){
+    if(!confirm('Xóa chương trình "'+p.name+'" và các sản phẩm liên kết?'))return
+    const {error:e}=await requireSupabase().from('promotions').delete().eq('id',p.id)
+    if(e)alert(e.message);else{if(selected?.id===p.id)setSelected(null);void refresh()}
+  }
+  const filtered=programs.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()))
+  const available=products.filter(p=>p.is_published&&!linkedIds.includes(p.id)&&!assignedIds.includes(p.id)&&p.name.toLowerCase().includes(productSearch.toLowerCase()))
   return <>
-    <PageHeading title="Khuyến mãi" description="Tạo và quản lý ưu đãi theo từng sản phẩm, tách biệt với thông tin sản phẩm." action={<span className="pill pill-green">{activeCount} sản phẩm có khuyến mãi</span>} />
-    <div className="toolbar"><div className="searchbox"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm sản phẩm để tạo khuyến mãi…"/></div><span className="muted small">{filtered.length} sản phẩm</span></div>
-    {error && <div className="notice error">{error}</div>}
-    <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>SẢN PHẨM</th><th>GIÁ GỐC</th><th>MỨC GIẢM</th><th>THỜI GIAN ÁP DỤNG</th><th>VỊ TRÍ HIỂN THỊ</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
-      {loading ? <tr><td colSpan={6} className="empty">Đang tải dữ liệu…</td></tr> : filtered.length === 0 ? <tr><td colSpan={6} className="empty">Chưa có sản phẩm.</td></tr> : filtered.map(p => <tr key={p.id}>
-        <td><div className="product-cell">{p.image_url ? <img src={p.image_url} alt=""/> : <div className="image-placeholder"><Package size={18}/></div>}<div><b>{p.name}</b><small>{p.is_published ? 'Đăng bán' : 'Nháp'}</small></div></div></td>
-        <td>{Number(p.price).toLocaleString('vi-VN')} đ</td>
-        <td>{p.promotion_type && p.promotion_value != null ? <b>{p.promotion_type === 'percent' ? '-' + p.promotion_value + '%' : '-' + Number(p.promotion_value).toLocaleString('vi-VN') + ' đ'}</b> : <span className="muted">Chưa thiết lập</span>}</td>
-        <td>{p.promotion_start_at && p.promotion_end_at ? <><small>{new Date(p.promotion_start_at).toLocaleString('vi-VN')}</small><small>đến {new Date(p.promotion_end_at).toLocaleString('vi-VN')}</small></> : '—'}</td>
-        <td>{p.is_flash_deal ? <span className="pill pill-green">Flash Deal</span> : p.promotion_type ? <span className="pill pill-gray">Khuyến mãi thường</span> : '—'}</td>
-        <td><div className="row-actions"><button className="text-btn" onClick={() => openPromotion(p)}>{p.promotion_type ? 'Chỉnh sửa' : '＋ Tạo khuyến mãi'}</button></div></td>
+    <div className="page-heading"><div><h1>Khuyến mãi</h1><p className="muted">Tạo chương trình trước, sau đó thêm nhiều sản phẩm cùng áp dụng một mức giảm.</p></div><button className="primary" onClick={()=>{reset();setCreating(true)}}><Plus size={15}/> Tạo chương trình</button></div>
+    <div className="toolbar"><div className="searchbox"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm chương trình khuyến mãi…"/></div><span className="muted small">{programs.length} chương trình</span></div>
+    {error&&<div className="notice error">{error}</div>}
+    <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>TÊN CHƯƠNG TRÌNH</th><th>MỨC GIẢM CHUNG</th><th>THỜI GIAN ÁP DỤNG</th><th>TRẠNG THÁI</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
+      {loading?<tr><td colSpan={5} className="empty">Đang tải chương trình…</td></tr>:filtered.length===0?<tr><td colSpan={5} className="empty">Chưa có chương trình khuyến mãi.</td></tr>:filtered.map(p=><tr key={p.id}>
+        <td><b>{p.name}</b>{p.is_flash_deal&&<small>⚡ Flash Sale</small>}</td><td><b>{discountLabel(p)}</b></td>
+        <td><small>{new Date(p.start_at).toLocaleString('vi-VN')}</small><small>đến {new Date(p.end_at).toLocaleString('vi-VN')}</small></td>
+        <td><span className={'pill '+(p.is_active?'pill-green':'pill-gray')}>{p.is_active?'Đang bật':'Đang tắt'}</span></td>
+        <td><div className="row-actions"><button className="text-btn" onClick={()=>void openProgram(p)}>Quản lý sản phẩm</button><button className="text-btn" onClick={()=>void toggleProgram(p)}>{p.is_active?'Tắt':'Bật'}</button><button className="text-btn danger-text" onClick={()=>void deleteProgram(p)}>Xóa</button></div></td>
       </tr>)}
     </tbody></table></div></div>
-    {selected && <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><form className="modal" onSubmit={savePromotion}>
-      <div className="modal-head"><div><p className="eyebrow">THIẾT LẬP ƯU ĐÃI</p><h2>{selected.name}</h2><p className="muted">Giá gốc: {Number(selected.price).toLocaleString('vi-VN')} đ</p></div><button type="button" className="icon-btn" onClick={()=>setSelected(null)}><X size={19}/></button></div>
+    {creating&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setCreating(false)}}><form className="modal" onSubmit={createProgram}>
+      <div className="modal-head"><div><p className="eyebrow">CHƯƠNG TRÌNH ƯU ĐÃI</p><h2>Tạo khuyến mãi mới</h2><p className="muted">Mức giảm và thời gian này áp dụng chung cho mọi sản phẩm được thêm vào.</p></div><button type="button" className="icon-btn" onClick={()=>setCreating(false)}><X size={19}/></button></div>
       <div className="form-grid">
-        <label className="check-label span-2"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/> Bật khuyến mãi cho sản phẩm này</label>
-        {enabled && <>
-          <label>Hình thức giảm giá<select value={type} onChange={e=>setType(e.target.value as 'percent'|'amount')}><option value="percent">Giảm theo phần trăm (%)</option><option value="amount">Giảm số tiền (VNĐ)</option></select></label>
-          <label>{type === 'percent' ? 'Phần trăm giảm (%)' : 'Số tiền giảm (VNĐ)'}<input required min="1" max={type === 'percent' ? 100 : undefined} type="number" value={value} onChange={e=>setValue(e.target.value)}/></label>
-          <label>Bắt đầu khuyến mãi<input required type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/></label>
-          <label>Kết thúc khuyến mãi<input required type="datetime-local" min={start || undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
-          <label className="check-label span-2"><input type="checkbox" checked={flash} onChange={e=>setFlash(e.target.checked)}/> Đưa sản phẩm vào khu vực Flash Deal</label>
-          {flash && <>
-            <label>Flash Deal bắt đầu<input required type="datetime-local" value={flashStart} onChange={e=>setFlashStart(e.target.value)}/></label>
-            <label>Flash Deal kết thúc<input required type="datetime-local" min={flashStart || undefined} value={flashEnd} onChange={e=>setFlashEnd(e.target.value)}/></label>
-            <p className="muted small span-2">Flash Deal chỉ quyết định việc hiển thị trong khu vực Flash Deal và có thời gian riêng.</p>
-          </>}
-        </>}
+        <label className="span-2">Tên chương trình *<input required value={name} onChange={e=>setName(e.target.value)} placeholder="Ví dụ: Sale cuối năm"/></label>
+        <label className="span-2">Mô tả<input value={description} onChange={e=>setDescription(e.target.value)} placeholder="Thông tin ngắn về chương trình"/></label>
+        <label>Hình thức giảm giá<select value={type} onChange={e=>setType(e.target.value as 'percent'|'amount')}><option value="percent">Giảm theo phần trăm (%)</option><option value="amount">Giảm số tiền (VNĐ)</option></select></label>
+        <label>{type==='percent'?'Phần trăm giảm (%)':'Số tiền giảm (VNĐ)'}<input required type="number" min="1" max={type==='percent'?100:undefined} value={value} onChange={e=>setValue(e.target.value)}/></label>
+        <label>Bắt đầu<input required type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/></label>
+        <label>Kết thúc<input required type="datetime-local" min={start||undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
+        <label className="check-label span-2"><input type="checkbox" checked={flash} onChange={e=>setFlash(e.target.checked)}/> Đánh dấu chương trình là Flash Sale</label>
+        {flash&&<><label>Flash Sale bắt đầu<input required type="datetime-local" value={flashStart} onChange={e=>setFlashStart(e.target.value)}/></label><label>Flash Sale kết thúc<input required type="datetime-local" min={flashStart||undefined} value={flashEnd} onChange={e=>setFlashEnd(e.target.value)}/></label></>}
       </div>
-      {message && <div className="notice error">{message}</div>}
-      <div className="modal-actions"><button type="button" className="secondary" onClick={()=>setSelected(null)}>Hủy</button><button className="primary" disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu khuyến mãi'}</button></div>
+      {message&&<div className="notice error">{message}</div>}
+      <div className="modal-actions"><button type="button" className="secondary" onClick={()=>setCreating(false)}>Hủy</button><button className="primary" disabled={busy}>{busy?'Đang lưu…':'Tạo chương trình'}</button></div>
     </form></div>}
+    {selected&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setSelected(null);setShowPicker(false)}}}><section className="modal">
+      <div className="modal-head"><div><p className="eyebrow">QUẢN LÝ CHƯƠNG TRÌNH</p><h2>{selected.name}</h2><p className="muted">Mức giảm chung: <b>{discountLabel(selected)}</b> · {new Date(selected.start_at).toLocaleDateString('vi-VN')} – {new Date(selected.end_at).toLocaleDateString('vi-VN')}</p></div><button type="button" className="icon-btn" onClick={()=>setSelected(null)}><X size={19}/></button></div>
+      <div className="card-heading"><div><h3>Sản phẩm tham gia ({assigned.length})</h3><p className="muted">Các sản phẩm đều dùng chung mức giảm của chương trình.</p></div><button className="primary" onClick={()=>{setShowPicker(true);setPicked([])}}><Plus size={14}/> Thêm sản phẩm</button></div>
+      {message&&<div className="notice error">{message}</div>}
+      <div className="table-scroll"><table><thead><tr><th>SẢN PHẨM</th><th>GIÁ GỐC</th><th>GIÁ SAU GIẢM</th><th></th></tr></thead><tbody>
+        {assigned.length===0?<tr><td colSpan={4} className="empty">Chưa có sản phẩm. Nhấn “Thêm sản phẩm” để chọn.</td></tr>:assigned.map(p=>{const price=Number(p.price);const off=selected.promotion_type==='percent'?price*selected.promotion_value/100:selected.promotion_value;return <tr key={p.id}><td><div className="product-cell">{p.image_url?<img src={p.image_url} alt=""/>:<div className="image-placeholder"><Package size={18}/></div>}<b>{p.name}</b></div></td><td>{price.toLocaleString('vi-VN')} đ</td><td><b>{Math.max(0,price-off).toLocaleString('vi-VN')} đ</b></td><td><button className="text-btn danger-text" onClick={()=>void removeProduct(p)}>Gỡ</button></td></tr>})}
+      </tbody></table></div>
+      {showPicker&&<div className="promotion-picker"><div className="toolbar"><div className="searchbox"><Search size={15}/><input value={productSearch} onChange={e=>setProductSearch(e.target.value)} placeholder="Tìm sản phẩm…"/></div><span className="muted small">{picked.length} đã chọn</span></div>
+        <div className="promotion-picker-list">{available.map(p=><label key={p.id} className="promotion-picker-item"><input type="checkbox" checked={picked.includes(p.id)} onChange={e=>setPicked(old=>e.target.checked?[...old,p.id]:old.filter(id=>id!==p.id))}/>{p.image_url?<img src={p.image_url} alt=""/>:<div className="image-placeholder"><Package size={16}/></div>}<span><b>{p.name}</b><small>{Number(p.price).toLocaleString('vi-VN')} đ</small></span></label>)}{available.length===0&&<p className="empty">Không còn sản phẩm phù hợp để thêm.</p>}</div>
+        <div className="modal-actions"><button className="secondary" onClick={()=>setShowPicker(false)}>Hủy</button><button className="primary" disabled={!picked.length||busy} onClick={()=>void addProducts()}>{busy?'Đang thêm…':'Thêm '+picked.length+' sản phẩm'}</button></div>
+      </div>}
+      <div className="modal-actions"><button className="secondary" onClick={()=>setSelected(null)}>Đóng</button></div>
+    </section></div>}
   </>
 }
-
-
 function Categories() {
   const { rows, loading, error, refresh } = useTable<Category>('categories')
   const [name, setName] = useState('')
