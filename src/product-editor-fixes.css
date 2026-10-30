@@ -1,0 +1,151 @@
+/* Product form layout repair: prevent fields and action bars from colliding */
+.product-editor-layout {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, .85fr);
+  gap: 20px;
+  align-items: start;
+  padding-bottom: 92px;
+}
+.product-editor-main,
+.product-editor-side,
+.product-editor-layout > *,
+.product-editor-layout .editor-section {
+  min-width: 0;
+}
+.product-editor-main,
+.product-editor-side {
+  align-content: start;
+}
+.product-editor-layout .editor-section > label {
+  width: 100%;
+  min-width: 0;
+}
+.product-editor-layout .editor-section input:not([type="radio"]),
+.product-editor-layout .editor-section input:not([type="checkbox"]),
+.product-editor-layout .editor-section select,
+.product-editor-layout .editor-section textarea {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.product-editor-layout .quick-info-builder,
+.product-editor-layout .detail-content-builder,
+.product-editor-layout .product-image-manager,
+.product-editor-layout .main-image-picker {
+  width: 100%;
+  min-width: 0;
+}
+.product-editor-layout .quick-info-heading,
+.product-editor-layout .detail-content-builder-heading {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.product-editor-layout .quick-info-heading > div,
+.product-editor-layout .detail-content-builder-heading > div:first-child {
+  min-width: 0;
+  flex: 1 1 220px;
+}
+.product-editor-layout .quick-info-heading > button,
+.product-editor-layout .detail-content-add-actions button {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+.product-editor-layout .quick-info-builder [style*="overflowX"] {
+  max-width: 100%;
+  overflow-x: auto !important;
+  overscroll-behavior-x: contain;
+}
+.product-editor-layout .quick-info-builder table {
+  min-width: 570px;
+}
+.product-editor-layout .quick-info-builder td,
+.product-editor-layout .quick-info-builder th {
+  vertical-align: top;
+}
+.product-editor-layout .quick-info-builder textarea {
+  display: block;
+  min-height: 40px;
+  resize: vertical;
+}
+.product-editor-layout .quick-info-builder .row-actions {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.product-editor-layout .category-edit-fields,
+.product-editor-layout .image-url-input,
+.product-editor-layout .gallery-upload-list {
+  min-width: 0;
+  max-width: 100%;
+}
+.product-editor-layout .product-editor-footer {
+  left: 272px;
+  right: 24px;
+  z-index: 30;
+}
+.product-editor-layout .product-editor-footer button {
+  min-width: 125px;
+}
+@media (max-width: 1100px) {
+  .product-editor-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .product-editor-side {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+@media (max-width: 760px) {
+  .product-editor-layout {
+    padding-bottom: 84px;
+    gap: 14px;
+  }
+  .product-editor-side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .product-editor-layout .editor-section {
+    padding: 16px;
+  }
+  .product-editor-layout .quick-info-builder,
+  .product-editor-layout .detail-content-builder {
+    padding: 14px;
+  }
+  .product-editor-layout .quick-info-heading,
+  .product-editor-layout .detail-content-builder-heading {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+  .product-editor-layout .quick-info-heading > button,
+  .product-editor-layout .detail-content-add-actions {
+    width: 100%;
+  }
+  .product-editor-layout .detail-content-add-actions button {
+    flex: 1 1 130px;
+  }
+  .product-editor-layout .product-editor-footer {
+    left: 10px;
+    right: 10px;
+    bottom: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 420px) {
+  .product-editor-layout .product-editor-footer {
+    gap: 7px;
+  }
+  .product-editor-layout .product-editor-footer button {
+    min-width: 0;
+    flex: 1 1 0;
+    padding: 11px 8px;
+    font-size: 11px;
+  }
+  .product-editor-layout .editor-section-heading {
+    gap: 9px;
+  }
+  .product-editor-layout .editor-step {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+  }
+}
