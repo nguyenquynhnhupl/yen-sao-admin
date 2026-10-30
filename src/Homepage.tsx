@@ -181,12 +181,7 @@ export function Homepage() {
   }
 
   return <>
-    <div className="page-heading">
-      <div>
-        <p className="eyebrow">QUẢN LÝ NỘI DUNG</p>
-        <h1>Trang chủ</h1>
-        <p className="muted">Cấu hình các khu vực trang chủ. Danh mục và sản phẩm được chọn từ Master Data, không tạo bản sao.</p>
-      </div>
+    <div className="homepage-toolbar">
       <button className="secondary" onClick={() => void refresh()}>↻ Làm mới</button>
     </div>
 
