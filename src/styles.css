@@ -424,3 +424,9 @@
 .category-loader{border-color:#e6ece6!important;border-top-color:#2c5538!important}
 .category-footer-dot{background:#6d956e!important}
 @media(max-width:700px){.category-hero-mark{display:none!important}}
+
+
+/* Homepage toolbar spacing */
+.homepage-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin:0 0 18px;padding:0}
+.homepage-toolbar .secondary{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:8px 14px;border-radius:9px}
+@media(max-width:700px){.homepage-toolbar{margin-bottom:14px}}
