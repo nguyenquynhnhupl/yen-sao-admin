@@ -537,7 +537,7 @@ function Categories() {
         <h1>Danh mục sản phẩm</h1>
         <p>Tổ chức các dòng sản phẩm và kiểm soát cách danh mục xuất hiện trên website.</p>
       </div>
-      <div className="category-hero-mark"><Tags size={34} strokeWidth={1.25}/><span>CURATED<br/>COLLECTIONS</span></div>
+      
     </div>
 
     <div className="category-stats">
