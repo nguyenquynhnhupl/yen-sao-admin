@@ -469,7 +469,6 @@ function Promotions() {
       <div className="form-grid">
         <label className="span-2">Tên chương trình *<input required value={name} onChange={e=>setName(e.target.value)} placeholder="Ví dụ: Sale cuối năm"/></label>
         <label className="span-2">Mô tả<input value={description} onChange={e=>setDescription(e.target.value)} placeholder="Thông tin ngắn về chương trình"/></label>
-        <div className="span-2 notice">Thiết lập hình thức và mức giảm riêng bên trong từng khung giờ bên dưới.</div>
         <label>Ngày bắt đầu<input required type="date" value={start} onChange={e=>setStart(e.target.value)}/></label>
         <label>Ngày kết thúc<input required type="date" min={start||undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
         <div className="span-2">
