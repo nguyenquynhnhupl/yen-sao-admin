@@ -23,6 +23,7 @@ export type Product = {
   promotion_start_at?: string | null;
   promotion_end_at?: string | null;
   is_flash_deal?: boolean;
+  daily_time_slots?: string[] | null;
   flash_deal_start_at?: string | null;
   flash_deal_end_at?: string | null;
   created_at?: string;
