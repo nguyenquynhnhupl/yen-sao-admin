@@ -332,18 +332,13 @@ type PromotionProgram = {
 }
 function TimePicker24({ value, onChange }: { value: string; onChange: (nextValue: string) => void }) {
   const [open, setOpen] = useState(false)
-  const [hour = '00', minute = '00'] = value.split(':')
-  const hourOptions = Array.from({length:24},(_,i)=>String(i).padStart(2,'0'))
-  const minuteOptions = Array.from({length:60},(_,i)=>String(i).padStart(2,'0'))
+  const timeOptions = Array.from({length:1440},(_,i)=>String(Math.floor(i/60)).padStart(2,'0')+':'+String(i%60).padStart(2,'0'))
   return <div style={{position:'relative'}}>
     <button type="button" className="secondary" style={{width:'100%',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}} onClick={()=>setOpen(v=>!v)}>
-      <span style={{fontVariantNumeric:'tabular-nums',fontWeight:600}}>{value.replace(':',' : ')}</span><span aria-hidden="true">▾</span>
+      <span style={{fontVariantNumeric:'tabular-nums',fontWeight:600}}>{value}</span><span aria-hidden="true">▾</span>
     </button>
-    {open&&<div style={{position:'absolute',zIndex:30,top:'calc(100% + 6px)',left:0,minWidth:220,padding:12,background:'#fff',border:'1px solid #e5e0d8',borderRadius:10,boxShadow:'0 8px 24px rgba(0,0,0,.12)'}}>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-        <label>Giờ<select size={5} value={hour} onChange={e=>onChange(e.target.value+':'+minute)} style={{width:'100%',maxHeight:128,overflowY:'auto'}}>{hourOptions.map(h=><option key={h} value={h}>{h}</option>)}</select></label>
-        <label>Phút<select size={5} value={minute} onChange={e=>onChange(hour+':'+e.target.value)} style={{width:'100%',maxHeight:128,overflowY:'auto'}}>{minuteOptions.map(m=><option key={m} value={m}>{m}</option>)}</select></label>
-      </div>
+    {open&&<div style={{position:'absolute',zIndex:30,top:'calc(100% + 6px)',left:0,width:'100%',minWidth:120,padding:8,background:'#fff',border:'1px solid #e5e0d8',borderRadius:10,boxShadow:'0 8px 24px rgba(0,0,0,.12)'}}>
+      <select size={5} value={value} onChange={e=>onChange(e.target.value)} style={{width:'100%',maxHeight:128,overflowY:'auto',border:0,outline:0}}>{timeOptions.map(t=><option key={t} value={t}>{t}</option>)}</select>
     </div>}
   </div>
 }
