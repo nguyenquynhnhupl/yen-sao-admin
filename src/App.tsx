@@ -409,7 +409,7 @@ function Promotions() {
       if(!name.trim())throw new Error('Vui lòng nhập tên chương trình.')
       const normalizedSlots = dailySlots.map(slot => ({...slot})).sort((a,b) => a.start.localeCompare(b.start))
       const parsedSlots = normalizedSlots.map(slot => ({...slot,startMinutes:Number(slot.start.slice(0,2))*60+Number(slot.start.slice(3,5)),endMinutes:Number(slot.end.slice(0,2))*60+Number(slot.end.slice(3,5))}))
-      if(!start||!end||end<start||!parsedSlots.length||parsedSlots.some(item=>!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.start)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.end)||item.endMinutes<=item.startMinutes||!Number.isFinite(item.promotion_value)||item.promotion_value<=0||(item.promotion_type==='percent'&&item.promotion_value>100))||parsedSlots.some((item,index)=>index>0&&item.startMinutes<parsedSlots[index-1].endMinutes))throw new Error('Vui lòng kiểm tra ngày áp dụng, giờ và mức giảm của từng khung. Các khung giờ không được trùng hoặc chồng lấn.')
+      if(!start||!end||end<start||!parsedSlots.length||parsedSlots.some(item=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.end)||item.endMinutes<=item.startMinutes||!Number.isFinite(item.promotion_value)||item.promotion_value<=0||(item.promotion_type==='percent'&&item.promotion_value>100))||parsedSlots.some((item,index)=>index>0&&item.startMinutes<parsedSlots[index-1].endMinutes))throw new Error('Vui lòng kiểm tra ngày áp dụng, giờ và mức giảm của từng khung. Các khung giờ không được trùng hoặc chồng lấn.')
       const firstSlot=normalizedSlots[0]
       const payload={
         name:name.trim(),description:description.trim()||null,promotion_type:firstSlot.promotion_type,promotion_value:firstSlot.promotion_value,
