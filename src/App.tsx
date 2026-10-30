@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, type FormEvent } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Activity, BookOpen, ChartNoAxesCombined, Image, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, Tags, X, House, Upload, Bold, Italic, Underline, List, ListOrdered } from 'lucide-react'
+import { Activity, BookOpen, ChartNoAxesCombined, Image, LayoutDashboard, LogOut, Menu, Package, ShoppingCart, Tags, X, House, Upload, Bold, Italic, Underline, List, ListOrdered, Search, GripVertical, Eye, EyeOff, Pencil, Trash2, Plus, FolderOpen, Check } from 'lucide-react'
 import { isSupabaseConfigured, requireSupabase, supabase } from './lib/supabase'
 import type { Article, Banner, Category, Order, Product } from './types'
 import { Homepage } from './Homepage'
@@ -427,45 +427,39 @@ function Categories() {
   const [editName, setEditName] = useState('')
   const [editImageUrl, setEditImageUrl] = useState('')
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<'all' | 'active' | 'hidden'>('all')
 
   const sortedRows = [...rows].sort(
-    (a, b) =>
-      (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
-      a.name.localeCompare(b.name, 'vi')
+    (a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || a.name.localeCompare(b.name, 'vi')
   )
+  const filteredRows = sortedRows.filter(c => {
+    const q = search.trim().toLocaleLowerCase('vi')
+    const matchesSearch = !q || c.name.toLocaleLowerCase('vi').includes(q) || (c.slug ?? '').toLowerCase().includes(q)
+    const matchesFilter = filter === 'all' || (filter === 'active' ? c.is_active : !c.is_active)
+    return matchesSearch && matchesFilter
+  })
+  const activeCount = rows.filter(c => c.is_active).length
+  const hiddenCount = rows.length - activeCount
 
   async function add(e: FormEvent) {
     e.preventDefault()
     const trimmedName = name.trim()
     if (!trimmedName) return
-
     setBusy(true)
     try {
-      const nextOrder =
-        rows.length > 0
-          ? Math.max(...rows.map(c => Number(c.sort_order) || 0)) + 1
-          : 1
-
-      const { error: insertError } = await requireSupabase()
-        .from('categories')
-        .insert({
-          name: trimmedName,
-          slug: slugify(trimmedName),
-          is_active: true,
-          image_url: imageUrl.trim() || null,
-          sort_order: nextOrder
-        })
-
+      const nextOrder = rows.length > 0 ? Math.max(...rows.map(c => Number(c.sort_order) || 0)) + 1 : 1
+      const { error: insertError } = await requireSupabase().from('categories').insert({
+        name: trimmedName, slug: slugify(trimmedName), is_active: true,
+        image_url: imageUrl.trim() || null, sort_order: nextOrder
+      })
       if (insertError) throw insertError
-
       setName('')
       setImageUrl('')
       await refresh()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Không lưu được danh mục.')
-    } finally {
-      setBusy(false)
-    }
+    } finally { setBusy(false) }
   }
 
   function startEdit(c: Category) {
@@ -473,304 +467,149 @@ function Categories() {
     setEditName(c.name)
     setEditImageUrl(c.image_url ?? '')
   }
-
   function cancelEdit() {
     setEditingId(null)
     setEditName('')
     setEditImageUrl('')
   }
-
   async function saveEdit(c: Category) {
     const trimmedName = editName.trim()
-
-    if (!trimmedName) {
-      alert('Vui lòng nhập tên danh mục.')
-      return
-    }
-
+    if (!trimmedName) { alert('Vui lòng nhập tên danh mục.'); return }
     setBusy(true)
     try {
-      const { error: updateError } = await requireSupabase()
-        .from('categories')
-        .update({
-          name: trimmedName,
-          slug: slugify(trimmedName),
-          image_url: editImageUrl.trim() || null
-        })
-        .eq('id', c.id)
-
+      const { error: updateError } = await requireSupabase().from('categories')
+        .update({ name: trimmedName, slug: slugify(trimmedName), image_url: editImageUrl.trim() || null }).eq('id', c.id)
       if (updateError) throw updateError
-
       cancelEdit()
       await refresh()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Không cập nhật được danh mục.')
-    } finally {
-      setBusy(false)
-    }
+    } finally { setBusy(false) }
   }
-
   async function reorder(draggedId: string, targetId: string) {
-    if (
-      draggedId === targetId ||
-      busy ||
-      editingId !== null
-    ) return
-
+    if (draggedId === targetId || busy || editingId !== null) return
     const newRows = [...sortedRows]
     const fromIndex = newRows.findIndex(c => c.id === draggedId)
     const toIndex = newRows.findIndex(c => c.id === targetId)
-
     if (fromIndex < 0 || toIndex < 0) return
-
     const [moved] = newRows.splice(fromIndex, 1)
     newRows.splice(toIndex, 0, moved)
-
     setBusy(true)
     try {
-      const supabase = requireSupabase()
-      const results = await Promise.all(
-        newRows.map((c, index) =>
-          supabase
-            .from('categories')
-            .update({ sort_order: index + 1 })
-            .eq('id', c.id)
-        )
-      )
-
+      const client = requireSupabase()
+      const results = await Promise.all(newRows.map((c, index) =>
+        client.from('categories').update({ sort_order: index + 1 }).eq('id', c.id)
+      ))
       const failed = results.find(result => result.error)
       if (failed?.error) throw failed.error
-
       await refresh()
     } catch (err) {
-      alert(
-        err instanceof Error
-          ? `Không lưu được thứ tự: ${err.message}`
-          : 'Không lưu được thứ tự danh mục.'
-      )
+      alert(err instanceof Error ? `Không lưu được thứ tự: ${err.message}` : 'Không lưu được thứ tự danh mục.')
       await refresh()
-    } finally {
-      setBusy(false)
-      setDraggingId(null)
-    }
+    } finally { setBusy(false); setDraggingId(null) }
   }
-
   async function toggle(c: Category) {
     setBusy(true)
     try {
-      const { error: updateError } = await requireSupabase()
-        .from('categories')
-        .update({ is_active: !c.is_active })
-        .eq('id', c.id)
-
+      const { error: updateError } = await requireSupabase().from('categories').update({ is_active: !c.is_active }).eq('id', c.id)
       if (updateError) throw updateError
       await refresh()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Không cập nhật được trạng thái.')
-    } finally {
-      setBusy(false)
-    }
+    } finally { setBusy(false) }
   }
-
   async function remove(c: Category) {
-    if (!confirm(`Xóa danh mục "${c.name}"?`)) return
-
+    if (!confirm(`Xóa danh mục "${c.name}"? Nếu đang có sản phẩm thuộc danh mục này, hệ thống có thể từ chối thao tác.`)) return
     setBusy(true)
     try {
-      const { error: deleteError } = await requireSupabase()
-        .from('categories')
-        .delete()
-        .eq('id', c.id)
-
+      const { error: deleteError } = await requireSupabase().from('categories').delete().eq('id', c.id)
       if (deleteError) throw deleteError
       await refresh()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Không xóa được danh mục.')
-    } finally {
-      setBusy(false)
-    }
+    } finally { setBusy(false) }
   }
 
-  return (
-    <>
-      <PageHeading
-        title="Danh mục"
-        description="Kéo thả danh mục để thay đổi thứ tự hiển thị."
-      />
+  return <section className="category-page">
+    <div className="category-hero">
+      <div className="category-hero-copy">
+        <span className="category-eyebrow">CỬA HÀNG YẾN SÀO · QUẢN TRỊ NỘI DUNG</span>
+        <h1>Danh mục sản phẩm</h1>
+        <p>Tổ chức các dòng sản phẩm và kiểm soát cách danh mục xuất hiện trên website.</p>
+      </div>
+      <div className="category-hero-mark"><Tags size={34} strokeWidth={1.25}/><span>CURATED<br/>COLLECTIONS</span></div>
+    </div>
 
-      <form className="inline-create content-card" onSubmit={add}>
-        <label>
-          Tên danh mục mới
-          <input
-            required
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="Ví dụ: Yến chưng sẵn"
-          />
-        </label>
-        <label>
-          Ảnh danh mục
-          <ImageUrlInput value={imageUrl} onChange={setImageUrl} placeholder="Dán URL hoặc tải ảnh từ máy" />
-        </label>
+    <div className="category-stats">
+      <div className="category-stat-card"><span className="category-stat-icon"><FolderOpen size={17}/></span><div><small>Tổng danh mục</small><strong>{rows.length}</strong></div></div>
+      <div className="category-stat-card"><span className="category-stat-icon is-live"><Eye size={17}/></span><div><small>Đang hiển thị</small><strong>{activeCount}</strong></div></div>
+      <div className="category-stat-card"><span className="category-stat-icon is-muted"><EyeOff size={17}/></span><div><small>Đang ẩn</small><strong>{hiddenCount}</strong></div></div>
+    </div>
 
-        <button className="primary" disabled={busy}>
-          {busy ? 'Đang xử lý…' : '＋ Thêm danh mục'}
-        </button>
+    <div className="category-workspace">
+      <form className="category-create-card" onSubmit={add}>
+        <div className="category-section-heading">
+          <span className="category-heading-icon"><Plus size={18}/></span>
+          <div><h2>Thêm danh mục mới</h2><p>Tạo một nhóm sản phẩm cho cửa hàng.</p></div>
+        </div>
+        <label className="category-field">Tên danh mục <em>*</em>
+          <input required value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Yến tinh chế nguyên tổ"/>
+        </label>
+        <label className="category-field">Ảnh đại diện <span className="category-optional">Không bắt buộc</span>
+          <ImageUrlInput compact value={imageUrl} onChange={setImageUrl} placeholder="Dán URL hoặc tải ảnh từ máy"/>
+        </label>
+        <div className="category-create-footer"><span>Slug sẽ được tạo tự động từ tên danh mục.</span><button className="primary category-add-btn" disabled={busy || !name.trim()}><Plus size={15}/>{busy ? 'Đang lưu…' : 'Thêm danh mục'}</button></div>
       </form>
 
-      {error && <div className="notice error">{error}</div>}
-
-      <div className="content-card table-card">
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>THỨ TỰ</th>
-                <th>TÊN DANH MỤC</th>
-                <th>ẢNH</th>
-                <th>SLUG</th>
-                <th>TRẠNG THÁI</th>
-                <th className="align-right">THAO TÁC</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="empty">Đang tải…</td>
-                </tr>
-              ) : sortedRows.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="empty">Chưa có danh mục.</td>
-                </tr>
-              ) : (
-                sortedRows.map((c, index) => (
-                  <tr
-                    key={c.id}
-                    draggable={!busy && editingId === null}
-                    onDragStart={e => {
-                      if (busy || editingId !== null) {
-                        e.preventDefault()
-                        return
-                      }
-
-                      setDraggingId(c.id)
-                      e.dataTransfer.effectAllowed = 'move'
-                      e.dataTransfer.setData('text/plain', c.id)
-                    }}
-                    onDragOver={e => {
-                      e.preventDefault()
-                      e.dataTransfer.dropEffect = 'move'
-                    }}
-                    onDrop={e => {
-                      e.preventDefault()
-                      const id = e.dataTransfer.getData('text/plain') || draggingId
-                      if (id) void reorder(id, c.id)
-                    }}
-                    onDragEnd={() => setDraggingId(null)}
-                    style={{
-                      cursor: busy || editingId !== null ? 'default' : 'grab',
-                      opacity: draggingId === c.id ? 0.45 : 1
-                    }}
-                  >
-                    <td>
-                      <span title="Kéo dòng này để đổi thứ tự">
-                        ⠿ {index + 1}
-                      </span>
-                    </td>
-
-                    <td>
-                      {editingId === c.id ? (
-                        <input
-                          required
-                          value={editName}
-                          onChange={e => setEditName(e.target.value)}
-                          autoFocus
-                        />
-                      ) : (
-                        <b>{c.name}</b>
-                      )}
-                    </td>
-
-                    <td>{editingId === c.id ? <ImageUrlInput compact value={editImageUrl} onChange={setEditImageUrl} placeholder="URL ảnh danh mục" /> : c.image_url ? <img src={c.image_url} alt={c.name} style={{width:48,height:40,objectFit:'cover',borderRadius:8}} /> : <span className="muted">Chưa có ảnh</span>}</td>
-                    <td className="muted">{c.slug}</td>
-
-                    <td>
-                      <span
-                        className={`pill ${
-                          c.is_active ? 'pill-green' : 'pill-gray'
-                        }`}
-                      >
-                        {c.is_active ? 'Đang hoạt động' : 'Đã ẩn'}
-                      </span>
-                    </td>
-
-                    <td>
-                      <div className="row-actions">
-                        {editingId === c.id ? (
-                          <>
-                            <button
-                              type="button"
-                              className="text-btn"
-                              disabled={busy}
-                              onClick={() => saveEdit(c)}
-                            >
-                              {busy ? 'Đang lưu…' : 'Lưu'}
-                            </button>
-                            <button
-                              type="button"
-                              className="text-btn"
-                              disabled={busy}
-                              onClick={cancelEdit}
-                            >
-                              Hủy
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className="text-btn"
-                              disabled={busy}
-                              onClick={() => startEdit(c)}
-                            >
-                              Sửa
-                            </button>
-                            <button
-                              type="button"
-                              className="text-btn"
-                              disabled={busy}
-                              onClick={() => toggle(c)}
-                            >
-                              {c.is_active ? 'Ẩn' : 'Hiện'}
-                            </button>
-                            <button
-                              type="button"
-                              className="text-btn danger-text"
-                              disabled={busy}
-                              onClick={() => remove(c)}
-                            >
-                              Xóa
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <div className="category-list-panel">
+        <div className="category-list-heading">
+          <div><span className="category-eyebrow">PRODUCT TAXONOMY</span><h2>Danh sách danh mục <span>{rows.length}</span></h2><p>Kéo thả để thay đổi thứ tự hiển thị trên website.</p></div>
+          <div className="category-sort-hint"><GripVertical size={16}/> Kéo để sắp xếp</div>
         </div>
+        <div className="category-toolbar">
+          <div className="category-search"><Search size={17}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm tên danh mục hoặc slug…"/>{search && <button type="button" onClick={() => setSearch('')} aria-label="Xóa tìm kiếm"><X size={15}/></button>}</div>
+          <div className="category-filters">
+            <button type="button" className={filter === 'all' ? 'selected' : ''} onClick={() => setFilter('all')}>Tất cả <b>{rows.length}</b></button>
+            <button type="button" className={filter === 'active' ? 'selected' : ''} onClick={() => setFilter('active')}>Đang hiện</button>
+            <button type="button" className={filter === 'hidden' ? 'selected' : ''} onClick={() => setFilter('hidden')}>Đang ẩn</button>
+          </div>
+        </div>
+        {error && <div className="notice error">{error}</div>}
+        {loading ? <div className="category-empty"><span className="category-loader"/><b>Đang tải danh mục</b><small>Đang đồng bộ dữ liệu từ cửa hàng…</small></div> :
+          filteredRows.length === 0 ? <div className="category-empty"><FolderOpen size={30}/><b>{rows.length ? 'Không tìm thấy danh mục phù hợp' : 'Chưa có danh mục nào'}</b><small>{rows.length ? 'Thử từ khóa khác hoặc thay đổi bộ lọc.' : 'Tạo danh mục đầu tiên để bắt đầu sắp xếp cửa hàng.'}</small>{(search || filter !== 'all') && <button type="button" className="secondary" onClick={() => {setSearch('');setFilter('all')}}>Xóa bộ lọc</button>}</div> :
+          <div className="category-items">{filteredRows.map(c => {
+            const index = sortedRows.findIndex(item => item.id === c.id)
+            const isEditing = editingId === c.id
+            return <article key={c.id} className={`category-item ${draggingId === c.id ? 'is-dragging' : ''} ${isEditing ? 'is-editing' : ''}`}
+              draggable={!busy && editingId === null && filter === 'all' && !search}
+              onDragStart={e => { if (busy || editingId !== null || filter !== 'all' || search) { e.preventDefault(); return }; setDraggingId(c.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', c.id) }}
+              onDragOver={e => {e.preventDefault();e.dataTransfer.dropEffect='move'}}
+              onDrop={e => {e.preventDefault();const id=e.dataTransfer.getData('text/plain') || draggingId;if(id) void reorder(id,c.id)}}
+              onDragEnd={() => setDraggingId(null)}>
+              <div className="category-order"><GripVertical size={17}/><span>{String(index + 1).padStart(2,'0')}</span></div>
+              <div className="category-thumb">{c.image_url ? <img src={c.image_url} alt={c.name} onError={e => {e.currentTarget.style.display='none'}}/> : <Tags size={21}/>}</div>
+              <div className="category-main">
+                {isEditing ? <div className="category-edit-fields"><input autoFocus required value={editName} onChange={e => setEditName(e.target.value)} aria-label="Tên danh mục"/><ImageUrlInput compact value={editImageUrl} onChange={setEditImageUrl} placeholder="URL ảnh danh mục"/></div> :
+                  <><strong>{c.name}</strong><span className="category-slug">{c.slug}</span></>}
+              </div>
+              <span className={`category-status ${c.is_active ? 'active' : 'hidden'}`}><i/>{c.is_active ? 'Đang hiển thị' : 'Đang ẩn'}</span>
+              <div className="category-actions">
+                {isEditing ? <>
+                  <button type="button" className="category-action save" disabled={busy || !editName.trim()} onClick={() => saveEdit(c)} title="Lưu thay đổi"><Check size={16}/><span>Lưu</span></button>
+                  <button type="button" className="category-action" disabled={busy} onClick={cancelEdit} title="Hủy"><X size={16}/></button>
+                </> : <>
+                  <button type="button" className="category-action" disabled={busy || editingId !== null} onClick={() => startEdit(c)} title="Chỉnh sửa"><Pencil size={16}/></button>
+                  <button type="button" className="category-action" disabled={busy || editingId !== null} onClick={() => toggle(c)} title={c.is_active ? 'Ẩn danh mục' : 'Hiện danh mục'}>{c.is_active ? <EyeOff size={16}/> : <Eye size={16}/>}</button>
+                  <button type="button" className="category-action delete" disabled={busy || editingId !== null} onClick={() => remove(c)} title="Xóa danh mục"><Trash2 size={16}/></button>
+                </>}
+              </div>
+            </article>
+          })}</div>}
+        <div className="category-list-footer"><span>Đang hiển thị <b>{filteredRows.length}</b> / {rows.length} danh mục</span><span><span className="category-footer-dot"/> Dữ liệu được lưu trực tiếp trên Supabase</span></div>
       </div>
-    </>
-  )
+    </div>
+  </section>
 }
-
-
-
-
-
 
 function Banners() {
   const {rows,loading,error,refresh}=useTable<Banner>('banners')
