@@ -491,7 +491,7 @@ function Promotions() {
               </div>
             </div>})}
           </div>
-          <button type="button" className="secondary" onClick={()=>setDailySlots(old=>[...old,'19:00-20:00'].sort((a,b)=>a.localeCompare(b))}>＋ Thêm khung giờ khác</button>
+          <button type="button" className="secondary" onClick={()=>setDailySlots(old=>[...old,'19:00-20:00'].sort((a,b)=>a.localeCompare(b)))}>＋ Thêm khung giờ khác</button>
           <p className="muted small" style={{marginTop:8}}>Ví dụ: 07:00–10:00 (buổi sáng), 12:00–13:00 (buổi trưa). Mỗi khung giờ không được trùng hoặc chồng lấn.</p>
         </div>
       </div>
