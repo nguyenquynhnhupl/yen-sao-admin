@@ -332,10 +332,19 @@ type PromotionProgram = {
 }
 function TimePicker24({ value, onChange }: { value: string; onChange: (nextValue: string) => void }) {
   const [open, setOpen] = useState(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [open])
   const [hour = '00', minute = '00'] = value.split(':')
   const hourOptions = Array.from({length:24},(_,i)=>String(i).padStart(2,'0'))
   const minuteOptions = Array.from({length:60},(_,i)=>String(i).padStart(2,'0'))
-  return <div style={{position:'relative'}}>
+  return <div ref={pickerRef} style={{position:'relative'}}>
     <button type="button" className="secondary" style={{width:'100%',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}} onClick={()=>setOpen(v=>!v)}>
       <span style={{fontVariantNumeric:'tabular-nums',fontWeight:600}}>{value.replace(':',' : ')}</span><span aria-hidden="true">▾</span>
     </button>
