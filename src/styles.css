@@ -377,3 +377,60 @@
 @media(max-width:1050px){.category-workspace{grid-template-columns:1fr}.category-create-card{order:0}.category-list-panel{order:1}}
 @media(max-width:700px){.category-hero{min-height:145px;padding:23px}.category-hero h1{font-size:24px}.category-hero-mark{display:none}.category-stats{gap:8px}.category-stat-card{gap:8px;min-height:70px;padding:11px}.category-stat-icon{width:31px;height:31px}.category-stat-card small{font-size:9px}.category-stat-card strong{font-size:19px}.category-create-card,.category-list-panel{padding:16px}.category-toolbar{align-items:stretch;flex-direction:column}.category-search{max-width:none}.category-filters{width:max-content;max-width:100%}.category-item{gap:8px;padding:9px}.category-thumb{width:40px;height:40px}.category-order{gap:1px}.category-status{padding:5px 6px;font-size:8px}.category-actions{gap:1px}.category-action{width:28px;height:28px}.category-list-heading{align-items:flex-start}.category-sort-hint{font-size:0}.category-sort-hint svg{width:18px;height:18px}.category-list-footer{flex-direction:column}.category-item .category-main>strong{font-size:11px}}
 @media(max-width:460px){.category-stats{grid-template-columns:1fr 1fr}.category-stat-card:last-child{grid-column:1/-1}.category-item{flex-wrap:wrap}.category-main{min-width:calc(100% - 120px)}.category-status{margin-left:60px}.category-actions{margin-left:auto}.category-hero p{font-size:11px}}
+
+
+/* Categories — align colors with the product management page */
+.category-hero{background:linear-gradient(115deg,#f5f8f4 0%,#edf3ed 100%);border-color:#e2eae2}
+.category-hero:after{display:none}
+.category-eyebrow{color:#718675}
+.category-hero h1{color:#203e2c}
+.category-hero p{color:#728075}
+.category-stats .category-stat-card{border-color:#e6ece6;box-shadow:none}
+.category-stat-icon{background:#edf3ed;color:#54745c}
+.category-stat-icon.is-live{background:#eaf5ed;color:#347348}
+.category-stat-icon.is-muted{background:#f0f3f0;color:#819087}
+.category-stat-card small{color:#728075}
+.category-stat-card strong{color:#203e2c}
+.category-create-card,.category-list-panel{border-color:#e6ece6;box-shadow:none}
+.category-section-heading{border-bottom-color:#e8eee8}
+.category-heading-icon{background:#edf3ed;color:#3d6848}
+.category-section-heading h2,.category-list-heading h2{color:#2d4935}
+.category-section-heading p,.category-list-heading p{color:#819087}
+.category-field{color:#526557}
+.category-field>input{border-color:#e0e8e1;background:#fff;color:#2d3c31}
+.category-field>input:focus{border-color:#8da894;box-shadow:0 0 0 3px #8da89422}
+.category-create-card .image-url-input>input[type=url]{border-color:#e0e8e1;background:#fff}
+.category-create-card .image-upload-control{border-color:#dce7dc;background:#f5f8f4;color:#49694f}
+.category-create-card .image-upload-control:hover{background:#eaf2e9;border-color:#b8cbbb}
+.category-add-btn{background:#2f5b3c;color:#fff}
+.category-add-btn:hover{background:#244a30}
+.category-list-heading{border-bottom-color:#e8eee8}
+.category-list-heading h2 span{background:#edf3ed;color:#426b4c}
+.category-sort-hint{color:#819087}
+.category-toolbar{color:#77847a}
+.category-search{border-color:#e0e8e1;background:#fff;color:#819084}
+.category-search input{color:#2d3c31}
+.category-filters{background:#f0f4f0}
+.category-filters button{color:#728075}
+.category-filters button.selected{color:#2c5538;background:#fff}
+.category-filters button b{color:#64806a}
+.category-item{border-color:#e6ece6}
+.category-item[draggable=true]:hover{border-color:#b8cbbb;background:#fbfdfb}
+.category-item.is-editing{border-color:#9db6a1;background:#f7faf6}
+.category-order span{color:#718675}
+.category-thumb{background:#f0f5ef;color:#6f8974}
+.category-main>strong{color:#344b39}
+.category-slug{color:#8b978d}
+.category-status.active{background:#eaf5ed;color:#347348}
+.category-status.hidden{background:#f0f3f0;color:#819087}
+.category-action{color:#77877a}
+.category-action:hover:not(:disabled){border-color:#dce7dc;background:#f2f7f1;color:#2f5b3c}
+.category-action.delete:hover:not(:disabled){border-color:#f0d9d4;background:#fff4f1;color:#b45345}
+.category-action.save{border-color:#dce7dc;background:#edf3ed;color:#365d40}
+.category-edit-fields>input{border-color:#dce7dc}
+.category-empty{color:#819087}
+.category-empty>b{color:#405746}
+.category-loader{border-color:#e0e9e0;border-top-color:#3d6848}
+.category-list-footer{border-top-color:#e8eee8;color:#8b978d}
+.category-list-footer b{color:#3b6043}
+.category-footer-dot{background:#45a466}
