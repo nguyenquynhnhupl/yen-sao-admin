@@ -327,7 +327,7 @@ function ProductEditor() {
 
 type PromotionProgram = {
   id: string; name: string; description: string | null; promotion_type: 'percent' | 'amount';
-  promotion_value: number; start_at: string; end_at: string; is_flash_deal: boolean;
+  promotion_value: number; start_at: string; end_at: string; daily_start_time: string | null; daily_end_time: string | null; is_flash_deal: boolean;
   flash_start_at: string | null; flash_end_at: string | null; is_active: boolean; created_at?: string;
 }
 function Promotions() {
@@ -341,10 +341,10 @@ function Promotions() {
   const [showPicker,setShowPicker]=useState(false), [productSearch,setProductSearch]=useState('')
   const [name,setName]=useState(''), [description,setDescription]=useState('')
   const [type,setType]=useState<'percent'|'amount'>('percent'), [value,setValue]=useState('')
-  const [start,setStart]=useState(''), [end,setEnd]=useState('')
+  const [start,setStart]=useState(''), [end,setEnd]=useState(''), [dailyStart,setDailyStart]=useState('12:00'), [dailyEnd,setDailyEnd]=useState('13:00')
   const [busy,setBusy]=useState(false), [message,setMessage]=useState('')
   useEffect(()=>{let cancelled=false;requireSupabase().from('promotion_products').select('promotion_id').then(({data,error:e})=>{if(cancelled)return;if(e){console.error(e.message);return}const next:Record<string,number>={};(data??[]).forEach((row:{promotion_id:string})=>{next[row.promotion_id]=(next[row.promotion_id]??0)+1});setProductCounts(next)});return()=>{cancelled=true}},[programs])
-  function reset(){setName('');setDescription('');setType('percent');setValue('');setStart('');setEnd('');setMessage('');setEditingId(null)}
+  function reset(){setName('');setDescription('');setType('percent');setValue('');setStart('');setEnd('');setDailyStart('12:00');setDailyEnd('13:00');setMessage('');setEditingId(null)}
   function toLocalDateTime(value:string|null|undefined){
     if(!value)return ''
     const date=new Date(value)
@@ -356,7 +356,7 @@ function Promotions() {
     setEditingId(p.id);setCreating(true);setMessage('')
     setName(p.name);setDescription(p.description??'')
     setType(p.promotion_type);setValue(String(p.promotion_value))
-    setStart(toLocalDateTime(p.start_at));setEnd(toLocalDateTime(p.end_at))
+    setStart(p.start_at?.slice(0,10) ?? '');setEnd(p.end_at?.slice(0,10) ?? '');setDailyStart((p.daily_start_time ?? '12:00').slice(0,5));setDailyEnd((p.daily_end_time ?? '13:00').slice(0,5))
   }
   function discountLabel(p:PromotionProgram){return p.promotion_type==='percent'?'-'+p.promotion_value+'%':'-'+Number(p.promotion_value).toLocaleString('vi-VN')+' đ'}
   async function openProgram(p:PromotionProgram){
@@ -378,12 +378,12 @@ function Promotions() {
     e.preventDefault();setBusy(true);setMessage('')
     try{
       if(!name.trim())throw new Error('Vui lòng nhập tên chương trình.')
-      if(!value||Number(value)<=0||!start||!end||new Date(end)<=new Date(start))throw new Error('Mức giảm và thời gian áp dụng chưa hợp lệ.')
+      if(!value||Number(value)<=0||!start||!end||end<start||!dailyStart||!dailyEnd||dailyEnd<=dailyStart)throw new Error('Mức giảm, ngày áp dụng hoặc khung giờ hằng ngày chưa hợp lệ.')
       if(type==='percent'&&Number(value)>100)throw new Error('Phần trăm giảm không được vượt quá 100%.')
       const payload={
         name:name.trim(),description:description.trim()||null,promotion_type:type,promotion_value:Number(value),
-        start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),is_flash_deal:true,
-        flash_start_at:new Date(start).toISOString(),flash_end_at:new Date(end).toISOString()
+        start_at:new Date(`${start}T00:00:00`).toISOString(),end_at:new Date(`${end}T23:59:59`).toISOString(),daily_start_time:dailyStart,daily_end_time:dailyEnd,is_flash_deal:true,
+        flash_start_at:new Date(`${start}T00:00:00`).toISOString(),flash_end_at:new Date(`${end}T23:59:59`).toISOString()
       }
       const query=editingId
         ? await requireSupabase().from('promotions').update(payload).eq('id',editingId)
@@ -426,7 +426,7 @@ function Promotions() {
     <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>TÊN CHƯƠNG TRÌNH</th><th>MỨC GIẢM CHUNG</th><th>THỜI GIAN ÁP DỤNG</th><th>SẢN PHẨM</th><th>TRẠNG THÁI</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
       {loading?<tr><td colSpan={6} className="empty">Đang tải chương trình…</td></tr>:filtered.length===0?<tr><td colSpan={6} className="empty">Chưa có chương trình khuyến mãi.</td></tr>:filtered.map(p=><tr key={p.id}>
         <td><b>{p.name}</b>{p.is_flash_deal&&<small>⚡ Flash Sale</small>}</td><td><b>{discountLabel(p)}</b></td>
-        <td><small>{new Date(p.start_at).toLocaleString('vi-VN')}</small><small>đến {new Date(p.end_at).toLocaleString('vi-VN')}</small></td><td>{productCounts[p.id]??0} sản phẩm</td>
+        <td><small>{new Date(p.start_at).toLocaleDateString('vi-VN')} – {new Date(p.end_at).toLocaleDateString('vi-VN')}</small><small>{(p.daily_start_time ?? '12:00').slice(0,5)} – {(p.daily_end_time ?? '13:00').slice(0,5)} hằng ngày</small></td><td>{productCounts[p.id]??0} sản phẩm</td>
         <td><span className={'pill '+(p.is_active?'pill-green':'pill-gray')}>{p.is_active?'Đang bật':'Đang tắt'}</span></td>
         <td><div className="row-actions"><button className="text-btn" onClick={()=>editProgram(p)}>Chỉnh sửa</button><button className="text-btn" onClick={()=>void openProgram(p)}>Quản lý sản phẩm</button><button className="text-btn" onClick={()=>void toggleProgram(p)}>{p.is_active?'Tắt':'Bật'}</button><button className="text-btn danger-text" onClick={()=>void deleteProgram(p)}>Xóa</button></div></td>
       </tr>)}
@@ -438,8 +438,10 @@ function Promotions() {
         <label className="span-2">Mô tả<input value={description} onChange={e=>setDescription(e.target.value)} placeholder="Thông tin ngắn về chương trình"/></label>
         <label>Hình thức giảm giá<select value={type} onChange={e=>setType(e.target.value as 'percent'|'amount')}><option value="percent">Giảm theo phần trăm (%)</option><option value="amount">Giảm số tiền (VNĐ)</option></select></label>
         <label>{type==='percent'?'Phần trăm giảm (%)':'Số tiền giảm (VNĐ)'}<input required type="number" min="1" max={type==='percent'?100:undefined} value={value} onChange={e=>setValue(e.target.value)}/></label>
-        <label>Bắt đầu<input required type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/></label>
-        <label>Kết thúc<input required type="datetime-local" min={start||undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
+        <label>Ngày bắt đầu<input required type="date" value={start} onChange={e=>setStart(e.target.value)}/></label>
+        <label>Ngày kết thúc<input required type="date" min={start||undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
+        <label>Giờ mở Flash Sale mỗi ngày<input required type="time" value={dailyStart} onChange={e=>setDailyStart(e.target.value)}/></label>
+        <label>Giờ kết thúc mỗi ngày<input required type="time" value={dailyEnd} onChange={e=>setDailyEnd(e.target.value)}/></label>
       </div>
       {message&&<div className="notice error">{message}</div>}
       <div className="modal-actions"><button type="button" className="secondary" onClick={()=>{setCreating(false);reset()}}>Hủy</button><button className="primary" disabled={busy}>{busy?'Đang lưu…':editingId?'Lưu thay đổi':'Tạo chương trình'}</button></div>
