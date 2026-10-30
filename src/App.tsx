@@ -531,15 +531,6 @@ function Categories() {
   }
 
   return <section className="category-page">
-    <div className="category-hero">
-      <div className="category-hero-copy">
-        <span className="category-eyebrow">CỬA HÀNG YẾN SÀO · QUẢN TRỊ NỘI DUNG</span>
-        <h1>Danh mục sản phẩm</h1>
-        <p>Tổ chức các dòng sản phẩm và kiểm soát cách danh mục xuất hiện trên website.</p>
-      </div>
-      
-    </div>
-
     <div className="category-stats">
       <div className="category-stat-card"><span className="category-stat-icon"><FolderOpen size={17}/></span><div><small>Tổng danh mục</small><strong>{rows.length}</strong></div></div>
       <div className="category-stat-card"><span className="category-stat-icon is-live"><Eye size={17}/></span><div><small>Đang hiển thị</small><strong>{activeCount}</strong></div></div>
