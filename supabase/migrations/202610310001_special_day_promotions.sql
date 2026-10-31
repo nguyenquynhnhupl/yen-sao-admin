@@ -1,6 +1,17 @@
 -- Special-day campaigns may overlap a regular campaign for the same product.
 -- Two regular campaigns or two special campaigns may not overlap.
 
+-- Existing campaigns become regular by default.
+ALTER TABLE public.promotions
+  ADD COLUMN IF NOT EXISTS campaign_type text NOT NULL DEFAULT 'regular';
+
+ALTER TABLE public.promotions
+  DROP CONSTRAINT IF EXISTS promotions_campaign_type_check;
+
+ALTER TABLE public.promotions
+  ADD CONSTRAINT promotions_campaign_type_check
+  CHECK (campaign_type IN ('regular', 'special'));
+
 CREATE OR REPLACE FUNCTION public.prevent_overlapping_product_promotions()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -45,7 +56,8 @@ DECLARE
   conflict_name text;
 BEGIN
   IF NEW.start_at IS NOT DISTINCT FROM OLD.start_at
-     AND NEW.end_at IS NOT DISTINCT FROM OLD.end_at THEN
+     AND NEW.end_at IS NOT DISTINCT FROM OLD.end_at
+     AND NEW.campaign_type IS NOT DISTINCT FROM OLD.campaign_type THEN
     RETURN NEW;
   END IF;
 
