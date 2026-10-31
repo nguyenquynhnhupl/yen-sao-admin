@@ -364,7 +364,7 @@ function Promotions() {
   const [productCounts,setProductCounts]=useState<Record<string,number>>({})
   const [selected,setSelected]=useState<PromotionProgram|null>(null)
   const [assigned,setAssigned]=useState<Product[]>([]), [assignedIds,setAssignedIds]=useState<string[]>([])
-  const [linkedIds,setLinkedIds]=useState<string[]>([]), [productProgramMap,setProductProgramMap]=useState<Record<string,Array<{name:string;start_at:string;end_at:string}>>>({}), [picked,setPicked]=useState<string[]>([])
+  const [productProgramMap,setProductProgramMap]=useState<Record<string,Array<{name:string;start_at:string;end_at:string}>>>({}), [picked,setPicked]=useState<string[]>([])
   const [showPicker,setShowPicker]=useState(false), [productSearch,setProductSearch]=useState('')
   const [name,setName]=useState(''), [description,setDescription]=useState('')
   const [type,setType]=useState<'percent'|'amount'>('percent'), [value,setValue]=useState('')
@@ -401,7 +401,6 @@ function Promotions() {
       const {data:all,error:ae}=await client.from('promotion_products').select('product_id,promotion_id')
       if(ae)throw ae
       const links=(all??[]) as Array<{product_id:string;promotion_id:string}>
-      setLinkedIds(links.map(x=>x.product_id))
       const otherPromotionIds=[...new Set(links.filter(x=>x.promotion_id!==p.id).map(x=>x.promotion_id))]
       const {data:otherPrograms,error:oe}=otherPromotionIds.length
         ? await client.from('promotions').select('id,name,start_at,end_at').in('id',otherPromotionIds)
