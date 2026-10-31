@@ -496,8 +496,8 @@ function Promotions() {
             return [{product:products.find(x=>x.id===link.product_id)?.name??link.product_id,program:other.name}]
           })
           if(conflicts.length){
-            const details=conflicts.map(x=>`• ${x.product} đang thuộc chương trình “${x.program}”`).join('\\n')
-            throw new Error('Không thể bật chương trình vì có sản phẩm trùng khuyến mãi đang chạy:\\n'+details+'\\nVui lòng tắt/gỡ sản phẩm khỏi chương trình bị trùng hoặc điều chỉnh thời gian.')
+            const names=[...new Set(conflicts.map(x=>x.program))]
+            throw new Error('Sản phẩm bị trùng với khuyến mãi: '+names.map(name=>'“'+name+'”').join(', '))
           }
         }
       }
