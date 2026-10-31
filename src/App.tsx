@@ -449,7 +449,7 @@ function Promotions() {
     if(e)alert(e.message);else{if(selected?.id===p.id)setSelected(null);void refresh()}
   }
   const filtered=programs.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()))
-  const available=products.filter(p=>p.is_published&&!linkedIds.includes(p.id)&&!assignedIds.includes(p.id)&&p.name.toLowerCase().includes(productSearch.toLowerCase()))
+  const available=products.filter(p=>p.is_published&&!assignedIds.includes(p.id)&&p.name.toLowerCase().includes(productSearch.toLowerCase()))
   const quickSlots = [{label:'Buổi sáng',start:'07:00',end:'10:00'},{label:'Buổi trưa',start:'12:00',end:'13:00'},{label:'Buổi chiều',start:'17:00',end:'18:00'},{label:'Buổi tối',start:'21:00',end:'22:00'}]
   function updateDailySlot(index: number, patch: Partial<PromotionTimeSlot>) { setDailySlots(old => old.map((slot,i)=>i===index?{...slot,...patch}:slot)) }
   return <>
