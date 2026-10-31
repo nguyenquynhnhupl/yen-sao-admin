@@ -475,8 +475,37 @@ function Promotions() {
     if(e)setMessage(e.message);else{setProductCounts(old=>({...old,[selected.id]:Math.max(0,(old[selected.id]??1)-1)}));await openProgram(selected)}
   }
   async function toggleProgram(p:PromotionProgram){
-    const {error:e}=await requireSupabase().from('promotions').update({is_active:!p.is_active}).eq('id',p.id)
-    if(e)alert(e.message);else void refresh()
+    setBusy(true)
+    try{
+      const client=requireSupabase()
+      if(!p.is_active){
+        const {data:links,error:le}=await client.from('promotion_products').select('product_id').eq('promotion_id',p.id)
+        if(le)throw le
+        const productIds=[...new Set((links??[]).map((x:{product_id:string})=>x.product_id))]
+        if(productIds.length){
+          const {data:otherLinks,error:oe}=await client.from('promotion_products').select('product_id,promotion_id').in('product_id',productIds).neq('promotion_id',p.id)
+          if(oe)throw oe
+          const otherIds=[...new Set((otherLinks??[]).map((x:{promotion_id:string})=>x.promotion_id))]
+          const {data:otherPrograms,error:pe}=otherIds.length
+            ? await client.from('promotions').select('id,name,start_at,end_at,campaign_type,is_active').in('id',otherIds)
+            : {data:[],error:null}
+          if(pe)throw pe
+          const conflicts=(otherLinks??[]).flatMap((link:{product_id:string;promotion_id:string})=>{
+            const other=(otherPrograms??[]).find((x:{id:string;name:string;start_at:string;end_at:string;campaign_type?:'regular'|'special';is_active?:boolean})=>x.id===link.promotion_id)
+            if(!other||other.is_active===false||(other.campaign_type??'regular')!==(p.campaign_type??'regular')||!overlaps(p.start_at,p.end_at,other.start_at,other.end_at))return []
+            return [{product:products.find(x=>x.id===link.product_id)?.name??link.product_id,program:other.name}]
+          })
+          if(conflicts.length){
+            const details=conflicts.map(x=>`• ${x.product} đang thuộc chương trình “${x.program}”`).join('\\n')
+            throw new Error('Không thể bật chương trình vì có sản phẩm trùng khuyến mãi đang chạy:\\n'+details+'\\nVui lòng tắt/gỡ sản phẩm khỏi chương trình bị trùng hoặc điều chỉnh thời gian.')
+          }
+        }
+      }
+      const {error:e}=await client.from('promotions').update({is_active:!p.is_active}).eq('id',p.id)
+      if(e)throw e
+      await refresh()
+    }catch(err){alert(err instanceof Error?err.message:'Không cập nhật được trạng thái chương trình.')}
+    finally{setBusy(false)}
   }
   async function deleteProgram(p:PromotionProgram){
     if(!confirm('Xóa chương trình "'+p.name+'" và các sản phẩm liên kết?'))return
