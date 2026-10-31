@@ -364,7 +364,7 @@ function Promotions() {
   const [productCounts,setProductCounts]=useState<Record<string,number>>({})
   const [selected,setSelected]=useState<PromotionProgram|null>(null)
   const [assigned,setAssigned]=useState<Product[]>([]), [assignedIds,setAssignedIds]=useState<string[]>([])
-  const [linkedIds,setLinkedIds]=useState<string[]>([]), [picked,setPicked]=useState<string[]>([])
+  const [linkedIds,setLinkedIds]=useState<string[]>([]), [productProgramMap,setProductProgramMap]=useState<Record<string,Array<{name:string;start_at:string;end_at:string}>>>({}), [picked,setPicked]=useState<string[]>([])
   const [showPicker,setShowPicker]=useState(false), [productSearch,setProductSearch]=useState('')
   const [name,setName]=useState(''), [description,setDescription]=useState('')
   const [type,setType]=useState<'percent'|'amount'>('percent'), [value,setValue]=useState('')
@@ -398,9 +398,21 @@ function Promotions() {
       const {data:ps,error:pe}=ids.length?await client.from('products').select('*').in('id',ids):{data:[],error:null}
       if(pe)throw pe
       setAssigned((ps??[]) as Product[])
-      const {data:all,error:ae}=await client.from('promotion_products').select('product_id')
+      const {data:all,error:ae}=await client.from('promotion_products').select('product_id,promotion_id')
       if(ae)throw ae
-      setLinkedIds((all??[]).map((x:{product_id:string})=>x.product_id))
+      const links=(all??[]) as Array<{product_id:string;promotion_id:string}>
+      setLinkedIds(links.map(x=>x.product_id))
+      const otherPromotionIds=[...new Set(links.filter(x=>x.promotion_id!==p.id).map(x=>x.promotion_id))]
+      const {data:otherPrograms,error:oe}=otherPromotionIds.length
+        ? await client.from('promotions').select('id,name,start_at,end_at').in('id',otherPromotionIds)
+        : {data:[],error:null}
+      if(oe)throw oe
+      const map:Record<string,Array<{name:string;start_at:string;end_at:string}>>={}
+      for(const link of links.filter(x=>x.promotion_id!==p.id)){
+        const program=(otherPrograms??[]).find((x:{id:string})=>x.id===link.promotion_id) as {id:string;name:string;start_at:string;end_at:string}|undefined
+        if(program)(map[link.product_id]??=[]).push({name:program.name,start_at:program.start_at,end_at:program.end_at})
+      }
+      setProductProgramMap(map)
     }catch(err){setMessage(err instanceof Error?err.message:'Không tải được sản phẩm trong chương trình.')}
   }
   async function createProgram(e:FormEvent){
@@ -424,11 +436,30 @@ function Promotions() {
     }catch(err){setMessage(err instanceof Error?err.message:'Không tạo được chương trình.')}
     finally{setBusy(false)}
   }
+  function overlaps(aStart:string,aEnd:string,bStart:string,bEnd:string){
+    return new Date(aStart).getTime()<=new Date(bEnd).getTime() && new Date(bStart).getTime()<=new Date(aEnd).getTime()
+  }
   async function addProducts(){
     if(!selected||!picked.length)return
     setBusy(true);setMessage('')
     try{
-      const {error:e}=await requireSupabase().from('promotion_products').insert(picked.map(product_id=>({promotion_id:selected.id,product_id})))
+      const client=requireSupabase()
+      const {data:links,error:le}=await client.from('promotion_products').select('product_id,promotion_id').in('product_id',picked)
+      if(le)throw le
+      const otherIds=[...new Set((links??[]).filter((x:{promotion_id:string})=>x.promotion_id!==selected.id).map((x:{promotion_id:string})=>x.promotion_id))]
+      const {data:otherPrograms,error:pe}=otherIds.length
+        ? await client.from('promotions').select('id,name,start_at,end_at').in('id',otherIds)
+        : {data:[],error:null}
+      if(pe)throw pe
+      const conflicts=picked.flatMap(id=>{
+        const program=(otherPrograms??[]).find((p:{id:string;name:string;start_at:string;end_at:string})=>(links??[]).some((link:{product_id:string;promotion_id:string})=>link.product_id===id&&link.promotion_id===p.id)&&overlaps(selected.start_at,selected.end_at,p.start_at,p.end_at))
+        return program?[{id,name:products.find(p=>p.id===id)?.name??id,program:program.name,end:program.end_at}]:[]
+      })
+      if(conflicts.length){
+        const details=conflicts.map(x=>`• ${x.name} đang thuộc chương trình “${x.program}” đến ${new Date(x.end).toLocaleString('vi-VN')}`).join('\\n')
+        throw new Error('Không thể thêm sản phẩm vì thời gian khuyến mãi bị chồng lấn:\\n'+details+'\\nVui lòng chọn ngày bắt đầu sau khi chương trình trước kết thúc.')
+      }
+      const {error:e}=await client.from('promotion_products').insert(picked.map(product_id=>({promotion_id:selected.id,product_id})))
       if(e)throw e
       setShowPicker(false);setPicked([]);setProductCounts(old=>({...old,[selected.id]:(old[selected.id]??0)+picked.length}));await openProgram(selected)
     }catch(err){setMessage(err instanceof Error?err.message:'Không thêm được sản phẩm.')}
@@ -449,7 +480,7 @@ function Promotions() {
     if(e)alert(e.message);else{if(selected?.id===p.id)setSelected(null);void refresh()}
   }
   const filtered=programs.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()))
-  const available=products.filter(p=>p.is_published&&!assignedIds.includes(p.id)&&p.name.toLowerCase().includes(productSearch.toLowerCase()))
+  const available=products.filter(p=>p.is_published&&!assignedIds.includes(p.id)&&!(productProgramMap[p.id]??[]).some(program=>overlaps(selected?.start_at??'',selected?.end_at??'',program.start_at,program.end_at))&&p.name.toLowerCase().includes(productSearch.toLowerCase()))
   const quickSlots = [{label:'Buổi sáng',start:'07:00',end:'10:00'},{label:'Buổi trưa',start:'12:00',end:'13:00'},{label:'Buổi chiều',start:'17:00',end:'18:00'},{label:'Buổi tối',start:'21:00',end:'22:00'}]
   function updateDailySlot(index: number, patch: Partial<PromotionTimeSlot>) { setDailySlots(old => old.map((slot,i)=>i===index?{...slot,...patch}:slot)) }
   return <>
