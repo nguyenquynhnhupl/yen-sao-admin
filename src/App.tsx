@@ -329,7 +329,7 @@ type PromotionTimeSlot = { start: string; end: string; promotion_type: 'percent'
 type PromotionProgram = {
   id: string; name: string; description: string | null; promotion_type: 'percent' | 'amount';
   promotion_value: number; start_at: string; end_at: string; daily_start_time: string | null; daily_end_time: string | null; daily_time_slots?: Array<string | PromotionTimeSlot> | null; is_flash_deal: boolean;
-  flash_start_at: string | null; flash_end_at: string | null; is_active: boolean; created_at?: string;
+  flash_start_at: string | null; flash_end_at: string | null; campaign_type?: 'regular' | 'special'; is_active: boolean; created_at?: string;
 }
 function TimePicker24({ value, onChange }: { value: string; onChange: (nextValue: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -367,11 +367,11 @@ function Promotions() {
   const [productProgramMap,setProductProgramMap]=useState<Record<string,Array<{name:string;start_at:string;end_at:string}>>>({}), [picked,setPicked]=useState<string[]>([])
   const [showPicker,setShowPicker]=useState(false), [productSearch,setProductSearch]=useState('')
   const [name,setName]=useState(''), [description,setDescription]=useState('')
-  const [type,setType]=useState<'percent'|'amount'>('percent'), [value,setValue]=useState('')
+  const [type,setType]=useState<'percent'|'amount'>('percent'), [value,setValue]=useState(''), [campaignType,setCampaignType]=useState<'regular'|'special'>('regular')
   const [start,setStart]=useState(''), [end,setEnd]=useState(''), [dailySlots,setDailySlots]=useState<PromotionTimeSlot[]>([{start:'07:00',end:'10:00',promotion_type:'percent',promotion_value:10},{start:'12:00',end:'13:00',promotion_type:'percent',promotion_value:10},{start:'17:00',end:'18:00',promotion_type:'percent',promotion_value:10}])
   const [busy,setBusy]=useState(false), [message,setMessage]=useState('')
   useEffect(()=>{let cancelled=false;requireSupabase().from('promotion_products').select('promotion_id').then(({data,error:e})=>{if(cancelled)return;if(e){console.error(e.message);return}const next:Record<string,number>={};(data??[]).forEach((row:{promotion_id:string})=>{next[row.promotion_id]=(next[row.promotion_id]??0)+1});setProductCounts(next)});return()=>{cancelled=true}},[programs])
-  function reset(){setName('');setDescription('');setType('percent');setValue('');setStart('');setEnd('');setDailySlots([{start:'07:00',end:'10:00',promotion_type:'percent',promotion_value:10},{start:'12:00',end:'13:00',promotion_type:'percent',promotion_value:10},{start:'17:00',end:'18:00',promotion_type:'percent',promotion_value:10}]);setMessage('');setEditingId(null)}
+  function reset(){setName('');setDescription('');setType('percent');setValue('');setCampaignType('regular');setStart('');setEnd('');setDailySlots([{start:'07:00',end:'10:00',promotion_type:'percent',promotion_value:10},{start:'12:00',end:'13:00',promotion_type:'percent',promotion_value:10},{start:'17:00',end:'18:00',promotion_type:'percent',promotion_value:10}]);setMessage('');setEditingId(null)}
   function toLocalDateTime(value:string|null|undefined){
     if(!value)return ''
     const date=new Date(value)
@@ -382,7 +382,7 @@ function Promotions() {
   function editProgram(p:PromotionProgram){
     setEditingId(p.id);setCreating(true);setMessage('')
     setName(p.name);setDescription(p.description??'')
-    setType(p.promotion_type);setValue(String(p.promotion_value))
+    setType(p.promotion_type);setValue(String(p.promotion_value));setCampaignType(p.campaign_type ?? 'regular')
     setStart(p.start_at?.slice(0,10) ?? '');setEnd(p.end_at?.slice(0,10) ?? '')
     const savedSlots = Array.isArray(p.daily_time_slots) && p.daily_time_slots.length ? p.daily_time_slots : [`${(p.daily_start_time ?? '07:00').slice(0,5)}-${(p.daily_end_time ?? '10:00').slice(0,5)}`]
     setDailySlots(savedSlots.map((item) => { if (typeof item === 'string') { const [s,e] = item.split('-'); return {start:s ?? '07:00',end:e ?? '10:00',promotion_type:p.promotion_type,promotion_value:Number(p.promotion_value)} } return {start:item.start,end:item.end,promotion_type:item.promotion_type ?? p.promotion_type,promotion_value:Number(item.promotion_value ?? p.promotion_value)} }))
@@ -403,13 +403,13 @@ function Promotions() {
       const links=(all??[]) as Array<{product_id:string;promotion_id:string}>
       const otherPromotionIds=[...new Set(links.filter(x=>x.promotion_id!==p.id).map(x=>x.promotion_id))]
       const {data:otherPrograms,error:oe}=otherPromotionIds.length
-        ? await client.from('promotions').select('id,name,start_at,end_at').in('id',otherPromotionIds)
+        ? await client.from('promotions').select('id,name,start_at,end_at,campaign_type').in('id',otherPromotionIds)
         : {data:[],error:null}
       if(oe)throw oe
-      const map:Record<string,Array<{name:string;start_at:string;end_at:string}>>={}
+      const map:Record<string,Array<{name:string;start_at:string;end_at:string;campaign_type?:'regular'|'special'}>>={}
       for(const link of links.filter(x=>x.promotion_id!==p.id)){
-        const program=(otherPrograms??[]).find((x:{id:string})=>x.id===link.promotion_id) as {id:string;name:string;start_at:string;end_at:string}|undefined
-        if(program)(map[link.product_id]??=[]).push({name:program.name,start_at:program.start_at,end_at:program.end_at})
+        const program=(otherPrograms??[]).find((x:{id:string})=>x.id===link.promotion_id) as {id:string;name:string;start_at:string;end_at:string;campaign_type?:'regular'|'special'}|undefined
+        if(program)(map[link.product_id]??=[]).push({name:program.name,start_at:program.start_at,end_at:program.end_at,campaign_type:program.campaign_type})
       }
       setProductProgramMap(map)
     }catch(err){setMessage(err instanceof Error?err.message:'Không tải được sản phẩm trong chương trình.')}
@@ -423,7 +423,7 @@ function Promotions() {
       if(!start||!end||end<start||!parsedSlots.length||parsedSlots.some(item=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.end)||item.endMinutes<=item.startMinutes||!Number.isFinite(item.promotion_value)||item.promotion_value<=0||(item.promotion_type==='percent'&&item.promotion_value>100))||parsedSlots.some((item,index)=>index>0&&item.startMinutes<parsedSlots[index-1].endMinutes))throw new Error('Vui lòng kiểm tra ngày áp dụng, giờ và mức giảm của từng khung. Các khung giờ không được trùng hoặc chồng lấn.')
       const firstSlot=normalizedSlots[0]
       const payload={
-        name:name.trim(),description:description.trim()||null,promotion_type:firstSlot.promotion_type,promotion_value:firstSlot.promotion_value,
+        name:name.trim(),description:description.trim()||null,campaign_type:campaignType,promotion_type:firstSlot.promotion_type,promotion_value:firstSlot.promotion_value,
         start_at:new Date(`${start}T00:00:00`).toISOString(),end_at:new Date(`${end}T23:59:59`).toISOString(),daily_start_time:firstSlot.start,daily_end_time:normalizedSlots[normalizedSlots.length-1].end,daily_time_slots:normalizedSlots,is_flash_deal:true,
         flash_start_at:new Date(`${start}T00:00:00`).toISOString(),flash_end_at:new Date(`${end}T23:59:59`).toISOString()
       }
@@ -447,11 +447,16 @@ function Promotions() {
       if(le)throw le
       const otherIds=[...new Set((links??[]).filter((x:{promotion_id:string})=>x.promotion_id!==selected.id).map((x:{promotion_id:string})=>x.promotion_id))]
       const {data:otherPrograms,error:pe}=otherIds.length
-        ? await client.from('promotions').select('id,name,start_at,end_at').in('id',otherIds)
+        ? await client.from('promotions').select('id,name,start_at,end_at,campaign_type').in('id',otherIds)
         : {data:[],error:null}
       if(pe)throw pe
       const conflicts=picked.flatMap(id=>{
-        const program=(otherPrograms??[]).find((p:{id:string;name:string;start_at:string;end_at:string})=>(links??[]).some((link:{product_id:string;promotion_id:string})=>link.product_id===id&&link.promotion_id===p.id)&&overlaps(selected.start_at,selected.end_at,p.start_at,p.end_at))
+        const program=(otherPrograms??[]).find((p:{id:string;name:string;start_at:string;end_at:string;campaign_type?:'regular'|'special'})=>{
+          const linked=(links??[]).some((link:{product_id:string;promotion_id:string})=>link.product_id===id&&link.promotion_id===p.id)
+          const dateOverlap=overlaps(selected.start_at,selected.end_at,p.start_at,p.end_at)
+          const allowedBaseAndSpecial=(selected.campaign_type??'regular')!==(p.campaign_type??'regular')
+          return linked&&dateOverlap&&!allowedBaseAndSpecial
+        })
         return program?[{id,name:products.find(p=>p.id===id)?.name??id,program:program.name,end:program.end_at}]:[]
       })
       if(conflicts.length){
@@ -479,7 +484,7 @@ function Promotions() {
     if(e)alert(e.message);else{if(selected?.id===p.id)setSelected(null);void refresh()}
   }
   const filtered=programs.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()))
-  const available=products.filter(p=>p.is_published&&!assignedIds.includes(p.id)&&!(productProgramMap[p.id]??[]).some(program=>overlaps(selected?.start_at??'',selected?.end_at??'',program.start_at,program.end_at))&&p.name.toLowerCase().includes(productSearch.toLowerCase()))
+  const available=products.filter(p=>p.is_published&&!assignedIds.includes(p.id)&&!(productProgramMap[p.id]??[]).some(program=>overlaps(selected?.start_at??'',selected?.end_at??'',program.start_at,program.end_at)&&((selected?.campaign_type??'regular')===(program.campaign_type??'regular')))&&p.name.toLowerCase().includes(productSearch.toLowerCase()))
   const quickSlots = [{label:'Buổi sáng',start:'07:00',end:'10:00'},{label:'Buổi trưa',start:'12:00',end:'13:00'},{label:'Buổi chiều',start:'17:00',end:'18:00'},{label:'Buổi tối',start:'21:00',end:'22:00'}]
   function updateDailySlot(index: number, patch: Partial<PromotionTimeSlot>) { setDailySlots(old => old.map((slot,i)=>i===index?{...slot,...patch}:slot)) }
   return <>
@@ -488,7 +493,7 @@ function Promotions() {
     {error&&<div className="notice error">{error}</div>}
     <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>TÊN CHƯƠNG TRÌNH</th><th>THỜI GIAN ÁP DỤNG</th><th>SẢN PHẨM</th><th>TRẠNG THÁI</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
       {loading?<tr><td colSpan={5} className="empty">Đang tải chương trình…</td></tr>:filtered.length===0?<tr><td colSpan={5} className="empty">Chưa có chương trình khuyến mãi.</td></tr>:filtered.map(p=><tr key={p.id}>
-        <td><b>{p.name}</b>{p.is_flash_deal&&<small>⚡ Flash Sale</small>}</td>
+        <td><b>{p.name}</b><small>{p.campaign_type==='special'?'✨ Ngày sale đặc biệt':'Khuyến mãi thường'}</small>{p.is_flash_deal&&<small>⚡ Flash Sale</small>}</td>
         <td><small>{new Date(p.start_at).toLocaleDateString('vi-VN')} – {new Date(p.end_at).toLocaleDateString('vi-VN')}</small><small>{(p.daily_time_slots?.length?p.daily_time_slots:[`${(p.daily_start_time ?? '07:00').slice(0,5)}-${(p.daily_end_time ?? '10:00').slice(0,5)}`]).join(' · ')} hằng ngày</small></td><td>{productCounts[p.id]??0} sản phẩm</td>
         <td><span className={'pill '+(p.is_active?'pill-green':'pill-gray')}>{p.is_active?'Đang bật':'Đang tắt'}</span></td>
         <td><div className="row-actions"><button className="text-btn" onClick={()=>editProgram(p)}>Chỉnh sửa</button><button className="text-btn" onClick={()=>void openProgram(p)}>Quản lý sản phẩm</button><button className="text-btn" onClick={()=>void toggleProgram(p)}>{p.is_active?'Tắt':'Bật'}</button><button className="text-btn danger-text" onClick={()=>void deleteProgram(p)}>Xóa</button></div></td>
@@ -499,6 +504,7 @@ function Promotions() {
       <div className="form-grid">
         <label className="span-2">Tên chương trình *<input required value={name} onChange={e=>setName(e.target.value)} placeholder="Ví dụ: Sale cuối năm"/></label>
         <label className="span-2">Mô tả<input value={description} onChange={e=>setDescription(e.target.value)} placeholder="Thông tin ngắn về chương trình"/></label>
+        <label className="span-2">Loại chương trình<select value={campaignType} onChange={e=>setCampaignType(e.target.value as 'regular'|'special')}><option value="regular">Khuyến mãi thường / theo tháng</option><option value="special">Ngày sale đặc biệt (ưu tiên cao nhất)</option></select><small className="muted">Ngày sale đặc biệt có thể trùng lịch với chương trình thường và sẽ thay thế mức giảm trong thời gian diễn ra, không cộng dồn.</small></label>
         <label>Ngày bắt đầu<input required type="date" value={start} onChange={e=>setStart(e.target.value)}/></label>
         <label>Ngày kết thúc<input required type="date" min={start||undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
         <div className="span-2">
