@@ -370,6 +370,7 @@ function Promotions() {
   const [type,setType]=useState<'percent'|'amount'>('percent'), [value,setValue]=useState(''), [campaignType,setCampaignType]=useState<'regular'|'special'>('regular')
   const [start,setStart]=useState(''), [end,setEnd]=useState(''), [dailySlots,setDailySlots]=useState<PromotionTimeSlot[]>([])
   const [busy,setBusy]=useState(false), [message,setMessage]=useState('')
+  const [conflictNotice,setConflictNotice]=useState<{programName:string;groups:Array<{program:PromotionProgram;products:string[]}>}|null>(null)
   useEffect(()=>{let cancelled=false;requireSupabase().from('promotion_products').select('promotion_id').then(({data,error:e})=>{if(cancelled)return;if(e){console.error(e.message);return}const next:Record<string,number>={};(data??[]).forEach((row:{promotion_id:string})=>{next[row.promotion_id]=(next[row.promotion_id]??0)+1});setProductCounts(next)});return()=>{cancelled=true}},[programs])
   function reset(){setName('');setDescription('');setType('percent');setValue('');setCampaignType('regular');setStart('');setEnd('');setDailySlots([]);setMessage('');setEditingId(null)}
   function toLocalDateTime(value:string|null|undefined){
@@ -489,18 +490,18 @@ function Promotions() {
           const conflicts=otherLinks??[]
           if(conflicts.length){
             const otherIds=[...new Set(conflicts.map((link:{promotion_id:string})=>link.promotion_id))]
-            const {data:otherPrograms,error:otherProgramsError}=await client.from('promotions').select('id,name,start_at,end_at,is_active').in('id',otherIds)
+            const {data:otherPrograms,error:otherProgramsError}=await client.from('promotions').select('*').in('id',otherIds)
             if(otherProgramsError)throw otherProgramsError
             const conflictProductIds=[...new Set(conflicts.map((link:{product_id:string})=>link.product_id))]
             const {data:conflictProducts,error:productsError}=await client.from('products').select('id,name').in('id',conflictProductIds)
             if(productsError)throw productsError
-            const details=conflicts.map((link:{product_id:string;promotion_id:string})=>{
-              const product=(conflictProducts??[]).find((item:{id:string})=>item.id===link.product_id) as {id:string;name:string}|undefined
-              const other=(otherPrograms??[]).find((item:{id:string})=>item.id===link.promotion_id) as {id:string;name:string;start_at:string;end_at:string;is_active:boolean}|undefined
-              const period=other?new Date(other.start_at).toLocaleDateString('vi-VN')+' – '+new Date(other.end_at).toLocaleDateString('vi-VN'):'không xác định thời gian'
-              return '• '+(product?.name??link.product_id)+' đã được gán vào chương trình "'+(other?.name??'Không rõ tên')+'" ('+period+', '+(other?.is_active?'đang bật':'đang tắt')+').'
-            })
-            throw new Error('Không thể bật chương trình "'+p.name+'" vì có '+conflicts.length+' liên kết sản phẩm trùng với chương trình khác.\\n'+details.join('\\n')+'\\nVui lòng gỡ sản phẩm khỏi chương trình kia hoặc xử lý trùng lặp trước khi bật.')
+            const groups=otherIds.map(id=>{
+              const program=(otherPrograms??[]).find((item:{id:string})=>item.id===id) as PromotionProgram|undefined
+              const names=conflicts.filter((link:{product_id:string;promotion_id:string})=>link.promotion_id===id).map((link:{product_id:string})=>(conflictProducts??[]).find((item:{id:string})=>item.id===link.product_id)?.name??link.product_id)
+              return program?{program,products:[...new Set(names)]}:null
+            }).filter((group):group is {program:PromotionProgram;products:string[]}=>Boolean(group))
+            setConflictNotice({programName:p.name,groups})
+            return
           }
         }
       }
@@ -531,6 +532,21 @@ function Promotions() {
         <td><div className="row-actions"><button className="text-btn" onClick={()=>editProgram(p)}>Chỉnh sửa</button><button className="text-btn" onClick={()=>void openProgram(p)}>Quản lý sản phẩm</button><button className="text-btn" onClick={()=>void toggleProgram(p)}>{p.is_active?'Tắt':'Bật'}</button><button className="text-btn danger-text" onClick={()=>void deleteProgram(p)}>Xóa</button></div></td>
       </tr>)}
     </tbody></table></div></div>
+    {conflictNotice&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setConflictNotice(null)}}><section className="modal" style={{maxWidth:620}}>
+      <div className="modal-head"><div><p className="eyebrow">KIỂM TRA TRÙNG SẢN PHẨM</p><h2>Chưa thể bật chương trình</h2><p className="muted">“{conflictNotice.programName}” có sản phẩm đã được gán trong các chương trình khác.</p></div><button type="button" className="icon-btn" onClick={()=>setConflictNotice(null)}><X size={19}/></button></div>
+      <div style={{display:'grid',gap:10,maxHeight:'52vh',overflowY:'auto'}}>
+        {conflictNotice.groups.map(group=><details key={group.program.id} open style={{border:'1px solid #e7e1d8',borderRadius:10,padding:'12px 14px',background:'#fff'}}>
+          <summary style={{cursor:'pointer',display:'flex',alignItems:'center',gap:8,listStyle:'none'}}>
+            <b style={{flex:1}}>{group.program.name}</b><span className="pill pill-gray">{group.products.length} sản phẩm trùng</span><span className={'pill '+(group.program.is_active?'pill-green':'pill-gray')}>{group.program.is_active?'Đang bật':'Đang tắt'}</span>
+          </summary>
+          <p className="muted small" style={{margin:'8px 0'}}>{new Date(group.program.start_at).toLocaleDateString('vi-VN')} – {new Date(group.program.end_at).toLocaleDateString('vi-VN')}</p>
+          <ul style={{margin:'0 0 12px',paddingLeft:20}}>{group.products.map(name=><li key={name} style={{margin:'5px 0'}}>{name}</li>)}</ul>
+          <button type="button" className="secondary" onClick={()=>{setConflictNotice(null);void openProgram(group.program)}}>Xem chương trình bị trùng <span aria-hidden="true">→</span></button>
+        </details>)}
+      </div>
+      <p className="muted small" style={{marginTop:12}}>Vui lòng gỡ sản phẩm khỏi chương trình khác trước khi bật “{conflictNotice.programName}”.</p>
+      <div className="modal-actions"><button type="button" className="primary" onClick={()=>setConflictNotice(null)}>Đã hiểu</button></div>
+    </section></div>}
     {creating&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setCreating(false)}}><form className="modal" onSubmit={createProgram}>
       <div className="modal-head"><div><p className="eyebrow">CHƯƠNG TRÌNH ƯU ĐÃI</p><h2>{editingId?'Chỉnh sửa chương trình':'Tạo khuyến mãi mới'}</h2><p className="muted">Mỗi khung giờ có mức giảm riêng, áp dụng cho các sản phẩm được thêm vào chương trình.</p></div><button type="button" className="icon-btn" onClick={()=>{setCreating(false);reset()}}><X size={19}/></button></div>
       <div className="form-grid">
