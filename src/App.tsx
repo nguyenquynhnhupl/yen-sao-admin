@@ -452,18 +452,24 @@ function Promotions() {
       const client=requireSupabase()
       const {data:existingLinks,error:linksError}=await client.from('promotion_products').select('product_id,promotion_id').in('product_id',picked)
       if(linksError)throw linksError
-      const conflicts=(existingLinks??[]).filter((link:{product_id:string;promotion_id:string})=>link.promotion_id!==selected.id)
-      if(conflicts.length){
-        const otherIds=[...new Set(conflicts.map((link:{promotion_id:string})=>link.promotion_id))]
-        const {data:otherPrograms,error:programError}=await client.from('promotions').select('id,name,start_at,end_at').in('id',otherIds)
-        if(programError)throw programError
-        const details=conflicts.map((link:{product_id:string;promotion_id:string})=>{
+      const otherIds=[...new Set((existingLinks??[]).filter((link:{promotion_id:string})=>link.promotion_id!==selected.id).map((link:{promotion_id:string})=>link.promotion_id))]
+      const {data:otherPrograms,error:programError}=otherIds.length
+        ? await client.from('promotions').select('id,name,start_at,end_at,is_active').in('id',otherIds)
+        : {data:[],error:null}
+      if(programError)throw programError
+      const activeOverlaps=(existingLinks??[]).filter((link:{product_id:string;promotion_id:string})=>{
+        if(link.promotion_id===selected.id)return false
+        const program=(otherPrograms??[]).find((item:{id:string})=>item.id===link.promotion_id) as {id:string;start_at:string;end_at:string;is_active:boolean}|undefined
+        return Boolean(program?.is_active&&overlaps(selected.start_at,selected.end_at,program.start_at,program.end_at))
+      })
+      if(activeOverlaps.length){
+        const details=activeOverlaps.map((link:{product_id:string;promotion_id:string})=>{
           const product=products.find(item=>item.id===link.product_id)
           const program=(otherPrograms??[]).find((item:{id:string})=>item.id===link.promotion_id) as {id:string;name:string;start_at:string;end_at:string}|undefined
           const period=program?new Date(program.start_at).toLocaleDateString('vi-VN')+' – '+new Date(program.end_at).toLocaleDateString('vi-VN'):'không xác định thời gian'
           return '• '+(product?.name??link.product_id)+' đang thuộc chương trình "'+(program?.name??'Không rõ tên')+'" ('+period+').'
         })
-        throw new Error('Không thể thêm '+conflicts.length+' sản phẩm vì đã được gán vào chương trình khuyến mãi khác.\\n'+details.join('\\n')+'\\nTheo cấu hình hiện tại, mỗi sản phẩm chỉ được thuộc một chương trình khuyến mãi.')
+        throw new Error('Không thể thêm sản phẩm vì đang trùng lịch với chương trình khuyến mãi đang bật.\\n'+details.join('\\n')+'\\nBạn có thể thêm sản phẩm nếu chương trình còn lại đã tắt hoặc không trùng thời gian áp dụng.')
       }
       const {error:e}=await client.from('promotion_products').insert(picked.map(product_id=>({promotion_id:selected.id,product_id})))
       if(e){if((e as {code?:string}).code==='23505')throw new Error('Sản phẩm vừa chọn đã được gán vào một chương trình khuyến mãi khác. Hãy tải lại danh sách và kiểm tra chương trình đang áp dụng.');throw e}
@@ -487,17 +493,23 @@ function Promotions() {
         if(ownIds.length){
           const {data:otherLinks,error:otherLinksError}=await client.from('promotion_products').select('product_id,promotion_id').in('product_id',ownIds).neq('promotion_id',p.id)
           if(otherLinksError)throw otherLinksError
-          const conflicts=otherLinks??[]
-          if(conflicts.length){
-            const otherIds=[...new Set(conflicts.map((link:{promotion_id:string})=>link.promotion_id))]
-            const {data:otherPrograms,error:otherProgramsError}=await client.from('promotions').select('*').in('id',otherIds)
-            if(otherProgramsError)throw otherProgramsError
-            const conflictProductIds=[...new Set(conflicts.map((link:{product_id:string})=>link.product_id))]
+          const linkedOtherIds=[...new Set((otherLinks??[]).map((link:{promotion_id:string})=>link.promotion_id))]
+          const {data:otherPrograms,error:otherProgramsError}=linkedOtherIds.length
+            ? await client.from('promotions').select('*').in('id',linkedOtherIds)
+            : {data:[],error:null}
+          if(otherProgramsError)throw otherProgramsError
+          const activeOverlaps=(otherLinks??[]).filter((link:{product_id:string;promotion_id:string})=>{
+            const other=(otherPrograms??[]).find((item:{id:string})=>item.id===link.promotion_id) as PromotionProgram|undefined
+            return Boolean(other?.is_active&&overlaps(p.start_at,p.end_at,other.start_at,other.end_at))
+          })
+          if(activeOverlaps.length){
+            const otherIds=[...new Set(activeOverlaps.map((link:{promotion_id:string})=>link.promotion_id))]
+            const conflictProductIds=[...new Set(activeOverlaps.map((link:{product_id:string})=>link.product_id))]
             const {data:conflictProducts,error:productsError}=await client.from('products').select('id,name').in('id',conflictProductIds)
             if(productsError)throw productsError
             const groups=otherIds.map(id=>{
               const program=(otherPrograms??[]).find((item:{id:string})=>item.id===id) as PromotionProgram|undefined
-              const names=conflicts.filter((link:{product_id:string;promotion_id:string})=>link.promotion_id===id).map((link:{product_id:string})=>(conflictProducts??[]).find((item:{id:string})=>item.id===link.product_id)?.name??link.product_id)
+              const names=activeOverlaps.filter((link:{product_id:string;promotion_id:string})=>link.promotion_id===id).map((link:{product_id:string})=>(conflictProducts??[]).find((item:{id:string})=>item.id===link.product_id)?.name??link.product_id)
               return program?{program,products:[...new Set(names)]}:null
             }).filter((group):group is {program:PromotionProgram;products:string[]}=>Boolean(group))
             setConflictNotice({programName:p.name,groups})
