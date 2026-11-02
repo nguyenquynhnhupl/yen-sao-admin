@@ -420,11 +420,11 @@ function Promotions() {
       if(!name.trim())throw new Error('Vui lòng nhập tên chương trình.')
       const normalizedSlots = dailySlots.map(slot => ({...slot})).sort((a,b) => a.start.localeCompare(b.start))
       const parsedSlots = normalizedSlots.map(slot => ({...slot,startMinutes:Number(slot.start.slice(0,2))*60+Number(slot.start.slice(3,5)),endMinutes:Number(slot.end.slice(0,2))*60+Number(slot.end.slice(3,5))}))
-      if(!start||!end||end<start||!parsedSlots.length||parsedSlots.some(item=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.end)||item.endMinutes<=item.startMinutes||!Number.isFinite(item.promotion_value)||item.promotion_value<=0||(item.promotion_type==='percent'&&item.promotion_value>100))||parsedSlots.some((item,index)=>index>0&&item.startMinutes<parsedSlots[index-1].endMinutes))throw new Error('Vui lòng kiểm tra ngày áp dụng, giờ và mức giảm của từng khung. Các khung giờ không được trùng hoặc chồng lấn.')
+      if(!start||!end||end<start||parsedSlots.some(item=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.end)||item.endMinutes<=item.startMinutes||!Number.isFinite(item.promotion_value)||item.promotion_value<=0||(item.promotion_type==='percent'&&item.promotion_value>100))||parsedSlots.some((item,index)=>index>0&&item.startMinutes<parsedSlots[index-1].endMinutes))throw new Error('Vui lòng kiểm tra ngày áp dụng và khung giờ. Các khung giờ không được trùng hoặc chồng lấn.')
       const firstSlot=normalizedSlots[0]
       const payload={
-        name:name.trim(),description:description.trim()||null,campaign_type:campaignType,promotion_type:firstSlot.promotion_type,promotion_value:firstSlot.promotion_value,
-        start_at:new Date(`${start}T00:00:00`).toISOString(),end_at:new Date(`${end}T23:59:59`).toISOString(),daily_start_time:firstSlot.start,daily_end_time:normalizedSlots[normalizedSlots.length-1].end,daily_time_slots:normalizedSlots,is_flash_deal:true,
+        name:name.trim(),description:description.trim()||null,campaign_type:campaignType,promotion_type:firstSlot?.promotion_type??type,promotion_value:firstSlot?.promotion_value??(Number(value)||0),
+        start_at:new Date(`${start}T00:00:00`).toISOString(),end_at:new Date(`${end}T23:59:59`).toISOString(),daily_start_time:firstSlot?.start??null,daily_end_time:normalizedSlots.length?normalizedSlots[normalizedSlots.length-1].end:null,daily_time_slots:normalizedSlots,is_flash_deal:true,
         flash_start_at:new Date(`${start}T00:00:00`).toISOString(),flash_end_at:new Date(`${end}T23:59:59`).toISOString()
       }
       const query=editingId
@@ -493,8 +493,8 @@ function Promotions() {
         <label>Ngày bắt đầu<input required type="date" value={start} onChange={e=>setStart(e.target.value)}/></label>
         <label>Ngày kết thúc<input required type="date" min={start||undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
         <div className="span-2">
-          <b>Khung giờ Flash Sale hằng ngày</b>
-          <p className="muted small">Mỗi khung giờ có thể thiết lập hình thức và mức giảm khác nhau. Các khung giờ lặp lại mỗi ngày trong thời gian chương trình.</p>
+          <b>Khung giờ Flash Sale hằng ngày <span className="muted small">(Không bắt buộc)</span></b>
+          <p className="muted small">Có thể tạo chương trình không có khung giờ. Khi không thiết lập khung giờ, chương trình không hiển thị trong section Flash Sale trên website.</p>
           <div style={{display:'flex',flexWrap:'wrap',gap:8,margin:'10px 0 14px'}}>
             {quickSlots.map(preset=><button key={preset.start} type="button" className="secondary" disabled={dailySlots.some(slot=>slot.start===preset.start&&slot.end===preset.end)} onClick={()=>setDailySlots(old=>[...old,{start:preset.start,end:preset.end,promotion_type:type,promotion_value:Number(value)||10}].sort((a,b)=>a.start.localeCompare(b.start)))}>{preset.label} · {preset.start}-{preset.end}</button>)}
           </div>
@@ -502,7 +502,7 @@ function Promotions() {
             {dailySlots.map((slot,index)=><div key={index} style={{border:'1px solid #e5e0d8',borderRadius:10,padding:12,background:'#fff'}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:10}}>
                 <b>Khung giờ {index+1}</b>
-                <button type="button" className="text-btn danger-text" disabled={dailySlots.length===1} onClick={()=>setDailySlots(old=>old.filter((_,i)=>i!==index))}>Xóa khung</button>
+                <button type="button" className="text-btn danger-text" onClick={()=>setDailySlots(old=>old.filter((_,i)=>i!==index))}>Xóa khung</button>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                 <label>Giờ bắt đầu<TimePicker24 value={slot.start} onChange={v=>updateDailySlot(index,{start:v})}/></label>
