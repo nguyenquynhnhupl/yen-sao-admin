@@ -368,10 +368,10 @@ function Promotions() {
   const [showPicker,setShowPicker]=useState(false), [productSearch,setProductSearch]=useState('')
   const [name,setName]=useState(''), [description,setDescription]=useState('')
   const [type,setType]=useState<'percent'|'amount'>('percent'), [value,setValue]=useState(''), [campaignType,setCampaignType]=useState<'regular'|'special'>('regular')
-  const [start,setStart]=useState(''), [end,setEnd]=useState(''), [dailySlots,setDailySlots]=useState<PromotionTimeSlot[]>([{start:'07:00',end:'10:00',promotion_type:'percent',promotion_value:10},{start:'12:00',end:'13:00',promotion_type:'percent',promotion_value:10},{start:'17:00',end:'18:00',promotion_type:'percent',promotion_value:10}])
+  const [start,setStart]=useState(''), [end,setEnd]=useState(''), [dailySlots,setDailySlots]=useState<PromotionTimeSlot[]>([])
   const [busy,setBusy]=useState(false), [message,setMessage]=useState('')
   useEffect(()=>{let cancelled=false;requireSupabase().from('promotion_products').select('promotion_id').then(({data,error:e})=>{if(cancelled)return;if(e){console.error(e.message);return}const next:Record<string,number>={};(data??[]).forEach((row:{promotion_id:string})=>{next[row.promotion_id]=(next[row.promotion_id]??0)+1});setProductCounts(next)});return()=>{cancelled=true}},[programs])
-  function reset(){setName('');setDescription('');setType('percent');setValue('');setCampaignType('regular');setStart('');setEnd('');setDailySlots([{start:'07:00',end:'10:00',promotion_type:'percent',promotion_value:10},{start:'12:00',end:'13:00',promotion_type:'percent',promotion_value:10},{start:'17:00',end:'18:00',promotion_type:'percent',promotion_value:10}]);setMessage('');setEditingId(null)}
+  function reset(){setName('');setDescription('');setType('percent');setValue('');setCampaignType('regular');setStart('');setEnd('');setDailySlots([]);setMessage('');setEditingId(null)}
   function toLocalDateTime(value:string|null|undefined){
     if(!value)return ''
     const date=new Date(value)
@@ -384,7 +384,7 @@ function Promotions() {
     setName(p.name);setDescription(p.description??'')
     setType(p.promotion_type);setValue(String(p.promotion_value));setCampaignType(p.campaign_type ?? 'regular')
     setStart(p.start_at?.slice(0,10) ?? '');setEnd(p.end_at?.slice(0,10) ?? '')
-    const savedSlots = Array.isArray(p.daily_time_slots) && p.daily_time_slots.length ? p.daily_time_slots : [`${(p.daily_start_time ?? '07:00').slice(0,5)}-${(p.daily_end_time ?? '10:00').slice(0,5)}`]
+    const savedSlots = Array.isArray(p.daily_time_slots) && p.daily_time_slots.length ? p.daily_time_slots : (p.daily_start_time && p.daily_end_time ? [`${p.daily_start_time.slice(0,5)}-${p.daily_end_time.slice(0,5)}`] : [])
     setDailySlots(savedSlots.map((item) => { if (typeof item === 'string') { const [s,e] = item.split('-'); return {start:s ?? '07:00',end:e ?? '10:00',promotion_type:p.promotion_type,promotion_value:Number(p.promotion_value)} } return {start:item.start,end:item.end,promotion_type:item.promotion_type ?? p.promotion_type,promotion_value:Number(item.promotion_value ?? p.promotion_value)} }))
   }
   function discountLabel(p:PromotionProgram){return p.promotion_type==='percent'?'-'+p.promotion_value+'%':'-'+Number(p.promotion_value).toLocaleString('vi-VN')+' đ'}
@@ -420,7 +420,7 @@ function Promotions() {
       if(!name.trim())throw new Error('Vui lòng nhập tên chương trình.')
       const normalizedSlots = dailySlots.map(slot => ({...slot})).sort((a,b) => a.start.localeCompare(b.start))
       const parsedSlots = normalizedSlots.map(slot => ({...slot,startMinutes:Number(slot.start.slice(0,2))*60+Number(slot.start.slice(3,5)),endMinutes:Number(slot.end.slice(0,2))*60+Number(slot.end.slice(3,5))}))
-      if(!start||!end||end<start||parsedSlots.some(item=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.end)||item.endMinutes<=item.startMinutes||!Number.isFinite(item.promotion_value)||item.promotion_value<=0||(item.promotion_type==='percent'&&item.promotion_value>100))||parsedSlots.some((item,index)=>index>0&&item.startMinutes<parsedSlots[index-1].endMinutes))throw new Error('Vui lòng kiểm tra ngày áp dụng và khung giờ. Các khung giờ không được trùng hoặc chồng lấn.')
+      if(!start||!end||end<start||(!parsedSlots.length&&(!Number.isFinite(Number(value))||Number(value)<=0||(type==='percent'&&Number(value)>100)))||parsedSlots.some(item=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.end)||item.endMinutes<=item.startMinutes||!Number.isFinite(item.promotion_value)||item.promotion_value<=0||(item.promotion_type==='percent'&&item.promotion_value>100))||parsedSlots.some((item,index)=>index>0&&item.startMinutes<parsedSlots[index-1].endMinutes))throw new Error('Vui lòng kiểm tra ngày áp dụng và khung giờ. Các khung giờ không được trùng hoặc chồng lấn.')
       const firstSlot=normalizedSlots[0]
       const payload={
         name:name.trim(),description:description.trim()||null,campaign_type:campaignType,promotion_type:firstSlot?.promotion_type??type,promotion_value:firstSlot?.promotion_value??(Number(value)||0),
@@ -479,7 +479,7 @@ function Promotions() {
     <div className="content-card table-card"><div className="table-scroll"><table><thead><tr><th>TÊN CHƯƠNG TRÌNH</th><th>THỜI GIAN ÁP DỤNG</th><th>SẢN PHẨM</th><th>TRẠNG THÁI</th><th className="align-right">THAO TÁC</th></tr></thead><tbody>
       {loading?<tr><td colSpan={5} className="empty">Đang tải chương trình…</td></tr>:filtered.length===0?<tr><td colSpan={5} className="empty">Chưa có chương trình khuyến mãi.</td></tr>:filtered.map(p=><tr key={p.id}>
         <td><b>{p.name}</b><small>{p.campaign_type==='special'?'✨ Ngày sale đặc biệt':'Khuyến mãi thường'}</small>{p.is_flash_deal&&<small>⚡ Flash Sale</small>}</td>
-        <td><small>{new Date(p.start_at).toLocaleDateString('vi-VN')} – {new Date(p.end_at).toLocaleDateString('vi-VN')}</small><small>{(p.daily_time_slots?.length ? p.daily_time_slots : [`${(p.daily_start_time ?? '07:00').slice(0,5)}-${(p.daily_end_time ?? '10:00').slice(0,5)}`]).map(slot => { if (typeof slot === 'string') return slot; const startTime = slot.start ?? ''; const endTime = slot.end ?? ''; return startTime && endTime ? `${startTime.slice(0,5)}-${endTime.slice(0,5)}` : ''; }).filter(Boolean).join(' · ')} hằng ngày</small></td><td>{productCounts[p.id]??0} sản phẩm</td>
+        <td><small>{new Date(p.start_at).toLocaleDateString('vi-VN')} – {new Date(p.end_at).toLocaleDateString('vi-VN')}</small><small>{(p.daily_time_slots?.length ? p.daily_time_slots : (p.daily_start_time && p.daily_end_time ? [`${p.daily_start_time.slice(0,5)}-${p.daily_end_time.slice(0,5)}`] : [])).map(slot => { if (typeof slot === 'string') return slot; const startTime = slot.start ?? ''; const endTime = slot.end ?? ''; return startTime && endTime ? `${startTime.slice(0,5)}-${endTime.slice(0,5)}` : ''; }).filter(Boolean).join(' · ')} hằng ngày</small></td><td>{productCounts[p.id]??0} sản phẩm</td>
         <td><span className={'pill '+(p.is_active?'pill-green':'pill-gray')}>{p.is_active?'Đang bật':'Đang tắt'}</span></td>
         <td><div className="row-actions"><button className="text-btn" onClick={()=>editProgram(p)}>Chỉnh sửa</button><button className="text-btn" onClick={()=>void openProgram(p)}>Quản lý sản phẩm</button><button className="text-btn" onClick={()=>void toggleProgram(p)}>{p.is_active?'Tắt':'Bật'}</button><button className="text-btn danger-text" onClick={()=>void deleteProgram(p)}>Xóa</button></div></td>
       </tr>)}
@@ -495,6 +495,10 @@ function Promotions() {
         <div className="span-2">
           <b>Khung giờ Flash Sale hằng ngày <span className="muted small">(Không bắt buộc)</span></b>
           <p className="muted small">Có thể tạo chương trình không có khung giờ. Khi không thiết lập khung giờ, chương trình không hiển thị trong section Flash Sale trên website.</p>
+          {dailySlots.length === 0 && <div className="form-grid" style={{margin:'12px 0'}}>
+            <label>Hình thức giảm<select value={type} onChange={e=>setType(e.target.value as 'percent'|'amount')}><option value="percent">Giảm theo %</option><option value="amount">Giảm số tiền (VNĐ)</option></select></label>
+            <label>{type==='percent'?'Mức giảm (%)':'Mức giảm (VNĐ)'}<input required type="number" min="1" max={type==='percent'?100:undefined} value={value} onChange={e=>setValue(e.target.value)} placeholder="Nhập mức giảm"/></label>
+          </div>}
           <div style={{display:'flex',flexWrap:'wrap',gap:8,margin:'10px 0 14px'}}>
             {quickSlots.map(preset=><button key={preset.start} type="button" className="secondary" disabled={dailySlots.some(slot=>slot.start===preset.start&&slot.end===preset.end)} onClick={()=>setDailySlots(old=>[...old,{start:preset.start,end:preset.end,promotion_type:type,promotion_value:Number(value)||10}].sort((a,b)=>a.start.localeCompare(b.start)))}>{preset.label} · {preset.start}-{preset.end}</button>)}
           </div>
