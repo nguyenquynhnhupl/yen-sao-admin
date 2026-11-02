@@ -364,7 +364,7 @@ function Promotions() {
   const [productCounts,setProductCounts]=useState<Record<string,number>>({})
   const [selected,setSelected]=useState<PromotionProgram|null>(null)
   const [assigned,setAssigned]=useState<Product[]>([]), [assignedIds,setAssignedIds]=useState<string[]>([])
-  const [productProgramMap,setProductProgramMap]=useState<Record<string,Array<{name:string;start_at:string;end_at:string}>>>({}), [picked,setPicked]=useState<string[]>([])
+  const [productProgramMap,setProductProgramMap]=useState<Record<string,Array<{name:string;start_at:string;end_at:string;campaign_type?:'regular'|'special';is_active?:boolean}>>>({}), [picked,setPicked]=useState<string[]>([])
   const [showPicker,setShowPicker]=useState(false), [productSearch,setProductSearch]=useState('')
   const [name,setName]=useState(''), [description,setDescription]=useState('')
   const [type,setType]=useState<'percent'|'amount'>('percent'), [value,setValue]=useState(''), [campaignType,setCampaignType]=useState<'regular'|'special'>('regular')
@@ -444,6 +444,22 @@ function Promotions() {
   }
   function overlaps(aStart:string,aEnd:string,bStart:string,bEnd:string){
     return new Date(aStart).getTime()<=new Date(bEnd).getTime() && new Date(bStart).getTime()<=new Date(aEnd).getTime()
+  }
+  function handleProductPick(product:Product, checked:boolean){
+    if(!selected)return
+    if(!checked){setPicked(old=>old.filter(id=>id!==product.id));setMessage('');return}
+    // Chỉ cảnh báo khi sản phẩm đã thuộc một Ngày sale đặc biệt khác
+    // đang bật và có thời gian áp dụng giao nhau với chương trình hiện tại.
+    const conflicts=selected.campaign_type==='special'
+      ? (productProgramMap[product.id]??[]).filter(program=>program.campaign_type==='special'&&program.is_active&&overlaps(selected.start_at,selected.end_at,program.start_at,program.end_at))
+      : []
+    if(conflicts.length){
+      const details=conflicts.map(program=>'• '+program.name+' ('+new Date(program.start_at).toLocaleDateString('vi-VN')+' – '+new Date(program.end_at).toLocaleDateString('vi-VN')+')').join('\\n')
+      setMessage('Không thể chọn sản phẩm "'+product.name+'" vì đã thuộc Ngày sale đặc biệt đang bật và bị trùng thời gian với chương trình này:\\n'+details+'\\n\\nBạn có thể chọn sản phẩm này nếu chương trình đặc biệt kia được tắt hoặc hai chương trình không trùng ngày.')
+      return
+    }
+    setMessage('')
+    setPicked(old=>old.includes(product.id)?old:[...old,product.id])
   }
   async function addProducts(){
     if(!selected||!picked.length)return
@@ -605,13 +621,13 @@ function Promotions() {
     </form></div>}
     {selected&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setSelected(null);setShowPicker(false)}}}><section className="modal">
       <div className="modal-head"><div><p className="eyebrow">QUẢN LÝ CHƯƠNG TRÌNH</p><h2>{selected.name}</h2><p className="muted">Mức giảm được cấu hình riêng theo từng khung giờ · {new Date(selected.start_at).toLocaleDateString('vi-VN')} – {new Date(selected.end_at).toLocaleDateString('vi-VN')}</p></div><button type="button" className="icon-btn" onClick={()=>setSelected(null)}><X size={19}/></button></div>
-      <div className="card-heading"><div><h3>Sản phẩm tham gia ({assigned.length})</h3><p className="muted">Mỗi sản phẩm áp dụng mức giảm của khung giờ đang diễn ra.</p></div><button className="primary" onClick={()=>{setShowPicker(true);setPicked([])}}><Plus size={14}/> Thêm sản phẩm</button></div>
+      <div className="card-heading"><div><h3>Sản phẩm tham gia ({assigned.length})</h3><p className="muted">Mỗi sản phẩm áp dụng mức giảm của khung giờ đang diễn ra.</p></div><button className="primary" onClick={()=>{setShowPicker(true);setPicked([]);setMessage('')}}><Plus size={14}/> Thêm sản phẩm</button></div>
       {message&&<div className="notice error">{message}</div>}
       <div className="table-scroll"><table><thead><tr><th>SẢN PHẨM</th><th>GIÁ GỐC</th><th>GIÁ SAU GIẢM</th><th></th></tr></thead><tbody>
         {assigned.length===0?<tr><td colSpan={4} className="empty">Chưa có sản phẩm. Nhấn “Thêm sản phẩm” để chọn.</td></tr>:assigned.map(p=>{const price=Number(p.price);const off=selected.promotion_type==='percent'?price*selected.promotion_value/100:selected.promotion_value;return <tr key={p.id}><td><div className="product-cell">{p.image_url?<img src={p.image_url} alt=""/>:<div className="image-placeholder"><Package size={18}/></div>}<b>{p.name}</b></div></td><td>{price.toLocaleString('vi-VN')} đ</td><td><b>{Math.max(0,price-off).toLocaleString('vi-VN')} đ</b></td><td><button className="text-btn danger-text" onClick={()=>void removeProduct(p)}>Gỡ</button></td></tr>})}
       </tbody></table></div>
       {showPicker&&<div className="promotion-picker"><div className="toolbar"><div className="searchbox"><Search size={15}/><input value={productSearch} onChange={e=>setProductSearch(e.target.value)} placeholder="Tìm sản phẩm…"/></div><span className="muted small">{picked.length} đã chọn</span></div>
-        <div className="promotion-picker-list">{available.map(p=><label key={p.id} className="promotion-picker-item"><input type="checkbox" checked={picked.includes(p.id)} onChange={e=>setPicked(old=>e.target.checked?[...old,p.id]:old.filter(id=>id!==p.id))}/>{p.image_url?<img src={p.image_url} alt=""/>:<div className="image-placeholder"><Package size={16}/></div>}<span><b>{p.name}</b><small>{Number(p.price).toLocaleString('vi-VN')} đ</small></span></label>)}{available.length===0&&<p className="empty">Không còn sản phẩm phù hợp để thêm.</p>}</div>
+        <div className="promotion-picker-list">{available.map(p=><label key={p.id} className="promotion-picker-item"><input type="checkbox" checked={picked.includes(p.id)} onChange={e=>handleProductPick(p,e.target.checked)}/>{p.image_url?<img src={p.image_url} alt=""/>:<div className="image-placeholder"><Package size={16}/></div>}<span><b>{p.name}</b><small>{Number(p.price).toLocaleString('vi-VN')} đ</small></span></label>)}{available.length===0&&<p className="empty">Không còn sản phẩm phù hợp để thêm.</p>}</div>
         <div className="modal-actions"><button className="secondary" onClick={()=>setShowPicker(false)}>Hủy</button><button className="primary" disabled={!picked.length||busy} onClick={()=>void addProducts()}>{busy?'Đang thêm…':'Thêm '+picked.length+' sản phẩm'}</button></div>
       </div>}
       <div className="modal-actions"><button className="secondary" onClick={()=>setSelected(null)}>Đóng</button></div>
