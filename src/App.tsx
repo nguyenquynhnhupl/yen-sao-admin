@@ -250,12 +250,7 @@ function ProductEditor() {
   const [form, setForm] = useState({ name:'', slug:'', description:'', price:'', image_url:'', gallery_urls:'', category_id:'', stock:'0', is_published:false })
   const [detailBlocks, setDetailBlocks] = useState<{ id: string; type: 'text' | 'image'; content: string }[]>([])
   const [quickInfo, setQuickInfo] = useState<{ id: string; label: string; value: string }[]>([])
-  const [quickInfoSources, setQuickInfoSources] = useState<{ id: string; name: string; quick_info: { label?: string; value?: string }[] }[]>([])
-  const [quickInfoSourceId, setQuickInfoSourceId] = useState('')
-  const [quickInfoOptions, setQuickInfoOptions] = useState<{id:string; label:string; value:string}[]>([])
   const [quickInfoOptionStatus, setQuickInfoOptionStatus] = useState('')
-  useEffect(() => { let active = true; void requireSupabase().from('product_quick_info_options').select('id,label,value').order('label').then(({data,error}) => { if(active && !error) setQuickInfoOptions(data ?? []) }); return () => { active = false } }, [])
-  useEffect(() => { let active = true; void requireSupabase().from('products').select('id,name,quick_info').order('name').then(({data,error}) => { if (active && !error) setQuickInfoSources((data ?? []).filter((p: any) => p.id !== productId && Array.isArray(p.quick_info) && p.quick_info.length).map((p: any) => ({id:p.id,name:p.name,quick_info:p.quick_info}))) }); return () => { active = false } }, [productId])
   useEffect(() => {
     let active = true
     async function load() {
@@ -381,13 +376,6 @@ function Promotions() {
     return year+'-'+month+'-'+day
   }
   function reset(){setName('');setDescription('');setType('percent');setValue('');setCampaignType('regular');setStart(localDateInputValue(new Date()));setEnd('');setDailySlots([]);setMessage('');setEditingId(null)}
-  function toLocalDateTime(value:string|null|undefined){
-    if(!value)return ''
-    const date=new Date(value)
-    if(Number.isNaN(date.getTime()))return ''
-    const local=new Date(date.getTime()-date.getTimezoneOffset()*60000)
-    return local.toISOString().slice(0,16)
-  }
   function editProgram(p:PromotionProgram){
     setEditingId(p.id);setCreating(true);setMessage('')
     setName(p.name);setDescription(p.description??'')
@@ -396,7 +384,6 @@ function Promotions() {
     const savedSlots = Array.isArray(p.daily_time_slots) && p.daily_time_slots.length ? p.daily_time_slots : (p.daily_start_time && p.daily_end_time ? [`${p.daily_start_time.slice(0,5)}-${p.daily_end_time.slice(0,5)}`] : [])
     setDailySlots(savedSlots.map((item) => { if (typeof item === 'string') { const [s,e] = item.split('-'); return {start:s ?? '07:00',end:e ?? '10:00',promotion_type:p.promotion_type,promotion_value:Number(p.promotion_value)} } return {start:item.start,end:item.end,promotion_type:item.promotion_type ?? p.promotion_type,promotion_value:Number(item.promotion_value ?? p.promotion_value)} }))
   }
-  function discountLabel(p:PromotionProgram){return p.promotion_type==='percent'?'-'+p.promotion_value+'%':'-'+Number(p.promotion_value).toLocaleString('vi-VN')+' đ'}
   async function openProgram(p:PromotionProgram){
     setSelected(p);setMessage('');setPicked([]);setProductSearch('')
     try{
