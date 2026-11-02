@@ -454,13 +454,15 @@ function Promotions() {
       if(linksError)throw linksError
       const otherIds=[...new Set((existingLinks??[]).filter((link:{promotion_id:string})=>link.promotion_id!==selected.id).map((link:{promotion_id:string})=>link.promotion_id))]
       const {data:otherPrograms,error:programError}=otherIds.length
-        ? await client.from('promotions').select('id,name,start_at,end_at,is_active').in('id',otherIds)
+        ? await client.from('promotions').select('id,name,start_at,end_at,is_active,campaign_type').in('id',otherIds)
         : {data:[],error:null}
       if(programError)throw programError
+      // Chỉ ngăn trùng sản phẩm giữa hai chương trình NGÀY SALE ĐẶC BIỆT
+      // khi cả hai đang bật và thời gian áp dụng giao nhau.
       const activeOverlaps=(existingLinks??[]).filter((link:{product_id:string;promotion_id:string})=>{
-        if(link.promotion_id===selected.id)return false
-        const program=(otherPrograms??[]).find((item:{id:string})=>item.id===link.promotion_id) as {id:string;start_at:string;end_at:string;is_active:boolean}|undefined
-        return Boolean(program?.is_active&&overlaps(selected.start_at,selected.end_at,program.start_at,program.end_at))
+        if(link.promotion_id===selected.id||selected.campaign_type!=='special')return false
+        const program=(otherPrograms??[]).find((item:{id:string})=>item.id===link.promotion_id) as {id:string;start_at:string;end_at:string;is_active:boolean;campaign_type?:string}|undefined
+        return Boolean(program?.is_active&&program.campaign_type==='special'&&overlaps(selected.start_at,selected.end_at,program.start_at,program.end_at))
       })
       if(activeOverlaps.length){
         const details=activeOverlaps.map((link:{product_id:string;promotion_id:string})=>{
@@ -469,7 +471,7 @@ function Promotions() {
           const period=program?new Date(program.start_at).toLocaleDateString('vi-VN')+' – '+new Date(program.end_at).toLocaleDateString('vi-VN'):'không xác định thời gian'
           return '• '+(product?.name??link.product_id)+' đang thuộc chương trình "'+(program?.name??'Không rõ tên')+'" ('+period+').'
         })
-        throw new Error('Không thể thêm sản phẩm vì đang trùng lịch với chương trình khuyến mãi đang bật.\\n'+details.join('\\n')+'\\nBạn có thể thêm sản phẩm nếu chương trình còn lại đã tắt hoặc không trùng thời gian áp dụng.')
+        throw new Error('Không thể thêm sản phẩm vì đang trùng với một chương trình Ngày sale đặc biệt khác đang bật.\\n'+details.join('\\n')+'\\nChỉ bị chặn khi cả hai đều là Ngày sale đặc biệt, đang bật và trùng thời gian áp dụng. Chương trình thường vẫn được phép dùng chung sản phẩm.')
       }
       const {error:e}=await client.from('promotion_products').insert(picked.map(product_id=>({promotion_id:selected.id,product_id})))
       if(e){if((e as {code?:string}).code==='23505')throw new Error('Sản phẩm vừa chọn đã được gán vào một chương trình khuyến mãi khác. Hãy tải lại danh sách và kiểm tra chương trình đang áp dụng.');throw e}
@@ -500,7 +502,8 @@ function Promotions() {
           if(otherProgramsError)throw otherProgramsError
           const activeOverlaps=(otherLinks??[]).filter((link:{product_id:string;promotion_id:string})=>{
             const other=(otherPrograms??[]).find((item:{id:string})=>item.id===link.promotion_id) as PromotionProgram|undefined
-            return Boolean(other?.is_active&&overlaps(p.start_at,p.end_at,other.start_at,other.end_at))
+            // Chỉ chặn khi chương trình đang bật và chương trình được bật đều là Ngày sale đặc biệt.
+            return Boolean(p.campaign_type==='special'&&other?.campaign_type==='special'&&other.is_active&&overlaps(p.start_at,p.end_at,other.start_at,other.end_at))
           })
           if(activeOverlaps.length){
             const otherIds=[...new Set(activeOverlaps.map((link:{promotion_id:string})=>link.promotion_id))]
