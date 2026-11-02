@@ -492,7 +492,15 @@ function Promotions() {
       const {error:e}=await client.from('promotion_products').insert(picked.map(product_id=>({promotion_id:selected.id,product_id})))
       if(e){if((e as {code?:string}).code==='23505')throw new Error('Sản phẩm vừa chọn đã được gán vào một chương trình khuyến mãi khác. Hãy tải lại danh sách và kiểm tra chương trình đang áp dụng.');throw e}
       setShowPicker(false);setPicked([]);setProductCounts(old=>({...old,[selected.id]:(old[selected.id]??0)+picked.length}));await openProgram(selected)
-    }catch(err){setMessage(err instanceof Error?err.message:'Không thêm được sản phẩm.')}
+    }catch(err){
+      const detail = err && typeof err === 'object'
+        ? (err as {message?:string;details?:string;hint?:string;code?:string})
+        : null
+      const reason = err instanceof Error ? err.message : [detail?.message,detail?.details,detail?.hint,detail?.code ? 'Mã lỗi: '+detail.code : ''].filter(Boolean).join(' — ')
+      setMessage(reason
+        ? 'Không thêm được sản phẩm. Chi tiết: '+reason
+        : 'Không thêm được sản phẩm do lỗi không xác định. Vui lòng tải lại trang và thử lại.')
+    }
     finally{setBusy(false)}
   }
   async function removeProduct(p:Product){
