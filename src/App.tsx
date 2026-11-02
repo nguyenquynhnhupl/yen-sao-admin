@@ -478,7 +478,33 @@ function Promotions() {
   async function toggleProgram(p:PromotionProgram){
     setBusy(true)
     try{
-      const {error:e}=await requireSupabase().from('promotions').update({is_active:!p.is_active}).eq('id',p.id)
+      const client=requireSupabase()
+      if(!p.is_active){
+        const {data:ownLinks,error:ownError}=await client.from('promotion_products').select('product_id').eq('promotion_id',p.id)
+        if(ownError)throw ownError
+        const ownIds=(ownLinks??[]).map((link:{product_id:string})=>link.product_id)
+        if(ownIds.length){
+          const {data:otherLinks,error:otherLinksError}=await client.from('promotion_products').select('product_id,promotion_id').in('product_id',ownIds).neq('promotion_id',p.id)
+          if(otherLinksError)throw otherLinksError
+          const conflicts=otherLinks??[]
+          if(conflicts.length){
+            const otherIds=[...new Set(conflicts.map((link:{promotion_id:string})=>link.promotion_id))]
+            const {data:otherPrograms,error:otherProgramsError}=await client.from('promotions').select('id,name,start_at,end_at,is_active').in('id',otherIds)
+            if(otherProgramsError)throw otherProgramsError
+            const conflictProductIds=[...new Set(conflicts.map((link:{product_id:string})=>link.product_id))]
+            const {data:conflictProducts,error:productsError}=await client.from('products').select('id,name').in('id',conflictProductIds)
+            if(productsError)throw productsError
+            const details=conflicts.map((link:{product_id:string;promotion_id:string})=>{
+              const product=(conflictProducts??[]).find((item:{id:string})=>item.id===link.product_id) as {id:string;name:string}|undefined
+              const other=(otherPrograms??[]).find((item:{id:string})=>item.id===link.promotion_id) as {id:string;name:string;start_at:string;end_at:string;is_active:boolean}|undefined
+              const period=other?new Date(other.start_at).toLocaleDateString('vi-VN')+' – '+new Date(other.end_at).toLocaleDateString('vi-VN'):'không xác định thời gian'
+              return '• '+(product?.name??link.product_id)+' đã được gán vào chương trình "'+(other?.name??'Không rõ tên')+'" ('+period+', '+(other?.is_active?'đang bật':'đang tắt')+').'
+            })
+            throw new Error('Không thể bật chương trình "'+p.name+'" vì có '+conflicts.length+' liên kết sản phẩm trùng với chương trình khác.\\n'+details.join('\\n')+'\\nVui lòng gỡ sản phẩm khỏi chương trình kia hoặc xử lý trùng lặp trước khi bật.')
+          }
+        }
+      }
+      const {error:e}=await client.from('promotions').update({is_active:!p.is_active}).eq('id',p.id)
       if(e)throw e
       await refresh()
     }catch(err){alert(err instanceof Error?err.message:'Không cập nhật được trạng thái chương trình.')}
