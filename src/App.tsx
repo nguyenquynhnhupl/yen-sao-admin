@@ -372,7 +372,15 @@ function Promotions() {
   const [busy,setBusy]=useState(false), [message,setMessage]=useState('')
   const [conflictNotice,setConflictNotice]=useState<{programName:string;groups:Array<{program:PromotionProgram;products:string[]}>}|null>(null)
   useEffect(()=>{let cancelled=false;requireSupabase().from('promotion_products').select('promotion_id').then(({data,error:e})=>{if(cancelled)return;if(e){console.error(e.message);return}const next:Record<string,number>={};(data??[]).forEach((row:{promotion_id:string})=>{next[row.promotion_id]=(next[row.promotion_id]??0)+1});setProductCounts(next)});return()=>{cancelled=true}},[programs])
-  function reset(){setName('');setDescription('');setType('percent');setValue('');setCampaignType('regular');setStart('');setEnd('');setDailySlots([]);setMessage('');setEditingId(null)}
+  function localDateInputValue(value:string|Date){
+    const date=value instanceof Date?value:new Date(value)
+    if(Number.isNaN(date.getTime()))return ''
+    const year=date.getFullYear()
+    const month=String(date.getMonth()+1).padStart(2,'0')
+    const day=String(date.getDate()).padStart(2,'0')
+    return year+'-'+month+'-'+day
+  }
+  function reset(){setName('');setDescription('');setType('percent');setValue('');setCampaignType('regular');setStart(localDateInputValue(new Date()));setEnd('');setDailySlots([]);setMessage('');setEditingId(null)}
   function toLocalDateTime(value:string|null|undefined){
     if(!value)return ''
     const date=new Date(value)
@@ -384,7 +392,7 @@ function Promotions() {
     setEditingId(p.id);setCreating(true);setMessage('')
     setName(p.name);setDescription(p.description??'')
     setType(p.promotion_type);setValue(String(p.promotion_value));setCampaignType(p.campaign_type ?? 'regular')
-    setStart(p.start_at?.slice(0,10) ?? '');setEnd(p.end_at?.slice(0,10) ?? '')
+    setStart(p.start_at ? localDateInputValue(p.start_at) : '');setEnd(p.end_at ? localDateInputValue(p.end_at) : '')
     const savedSlots = Array.isArray(p.daily_time_slots) && p.daily_time_slots.length ? p.daily_time_slots : (p.daily_start_time && p.daily_end_time ? [`${p.daily_start_time.slice(0,5)}-${p.daily_end_time.slice(0,5)}`] : [])
     setDailySlots(savedSlots.map((item) => { if (typeof item === 'string') { const [s,e] = item.split('-'); return {start:s ?? '07:00',end:e ?? '10:00',promotion_type:p.promotion_type,promotion_value:Number(p.promotion_value)} } return {start:item.start,end:item.end,promotion_type:item.promotion_type ?? p.promotion_type,promotion_value:Number(item.promotion_value ?? p.promotion_value)} }))
   }
