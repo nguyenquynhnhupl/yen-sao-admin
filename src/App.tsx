@@ -422,7 +422,7 @@ function Promotions() {
       const normalizedSlots = dailySlots.map(slot => ({...slot})).sort((a,b) => a.start.localeCompare(b.start))
       const parsedSlots = normalizedSlots.map(slot => ({...slot,startMinutes:Number(slot.start.slice(0,2))*60+Number(slot.start.slice(3,5)),endMinutes:Number(slot.end.slice(0,2))*60+Number(slot.end.slice(3,5))}))
       if(!start||!end||end<start)throw new Error('Ngày áp dụng không hợp lệ: vui lòng chọn ngày bắt đầu và ngày kết thúc, ngày kết thúc không được trước ngày bắt đầu.')
-      const invalidSlot=parsedSlots.find(item=>!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.start)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.end)||item.endMinutes<=item.startMinutes)
+      const invalidSlot=parsedSlots.find(item=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.end)||item.endMinutes<=item.startMinutes)
       if(invalidSlot)throw new Error('Khung giờ '+invalidSlot.start+'–'+invalidSlot.end+' không hợp lệ. Giờ kết thúc phải sau giờ bắt đầu.')
       const invalidDiscount=parsedSlots.find(item=>!Number.isFinite(item.promotion_value)||item.promotion_value<=0||(item.promotion_type==='percent'&&item.promotion_value>100))
       if(invalidDiscount||(!parsedSlots.length&&(!Number.isFinite(Number(value))||Number(value)<=0||(type==='percent'&&Number(value)>100))))throw new Error('Mức giảm không hợp lệ. Vui lòng nhập số lớn hơn 0; mức giảm theo phần trăm không được vượt quá 100%.')
