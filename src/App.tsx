@@ -368,7 +368,8 @@ function Promotions() {
       if(!name.trim())throw new Error('Vui lòng nhập tên chương trình.')
       if(!value||Number(value)<=0||!start||!end||new Date(end)<=new Date(start))throw new Error('Mức giảm và thời gian áp dụng chưa hợp lệ.')
       if(type==='percent'&&Number(value)>100)throw new Error('Phần trăm giảm không được vượt quá 100%.')
-      if(flash&&(!flashStart||!flashEnd||new Date(flashEnd)<=new Date(flashStart)))throw new Error('Vui lòng nhập khung giờ Flash Sale hợp lệ.')
+      const hasFlashStart=Boolean(flashStart),hasFlashEnd=Boolean(flashEnd)
+      if(flash&&(hasFlashStart!==hasFlashEnd||(hasFlashStart&&new Date(flashEnd)<=new Date(flashStart))))throw new Error('Nếu thiết lập giờ Flash Sale, vui lòng nhập đầy đủ giờ bắt đầu và kết thúc hợp lệ.')
       const {error:e2}=await requireSupabase().from('promotions').insert({
         name:name.trim(),description:description.trim()||null,promotion_type:type,promotion_value:Number(value),
         start_at:new Date(start).toISOString(),end_at:new Date(end).toISOString(),is_flash_deal:flash,
@@ -427,7 +428,7 @@ function Promotions() {
         <label>Bắt đầu<input required type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/></label>
         <label>Kết thúc<input required type="datetime-local" min={start||undefined} value={end} onChange={e=>setEnd(e.target.value)}/></label>
         <label className="check-label span-2"><input type="checkbox" checked={flash} onChange={e=>setFlash(e.target.checked)}/> Đánh dấu chương trình là Flash Sale</label>
-        {flash&&<><label>Flash Sale bắt đầu<input required type="datetime-local" value={flashStart} onChange={e=>setFlashStart(e.target.value)}/></label><label>Flash Sale kết thúc<input required type="datetime-local" min={flashStart||undefined} value={flashEnd} onChange={e=>setFlashEnd(e.target.value)}/></label></>}
+        {flash&&<><p className="muted span-2 small">Khung giờ Flash Sale không bắt buộc. Nếu không thiết lập giờ, chương trình vẫn áp dụng mức giảm theo thời gian khuyến mãi nhưng sẽ không hiển thị trong khu vực Flash Sale trên website.</p><label>Flash Sale bắt đầu <span className="muted small">(Không bắt buộc)</span><input type="datetime-local" value={flashStart} onChange={e=>setFlashStart(e.target.value)}/></label><label>Flash Sale kết thúc <span className="muted small">(Không bắt buộc)</span><input type="datetime-local" min={flashStart||undefined} value={flashEnd} onChange={e=>setFlashEnd(e.target.value)}/></label></>}
       </div>
       {message&&<div className="notice error">{message}</div>}
       <div className="modal-actions"><button type="button" className="secondary" onClick={()=>setCreating(false)}>Hủy</button><button className="primary" disabled={busy}>{busy?'Đang lưu…':'Tạo chương trình'}</button></div>
