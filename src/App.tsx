@@ -420,7 +420,13 @@ function Promotions() {
       if(!name.trim())throw new Error('Vui lòng nhập tên chương trình.')
       const normalizedSlots = dailySlots.map(slot => ({...slot})).sort((a,b) => a.start.localeCompare(b.start))
       const parsedSlots = normalizedSlots.map(slot => ({...slot,startMinutes:Number(slot.start.slice(0,2))*60+Number(slot.start.slice(3,5)),endMinutes:Number(slot.end.slice(0,2))*60+Number(slot.end.slice(3,5))}))
-      if(!start||!end||end<start||(!parsedSlots.length&&(!Number.isFinite(Number(value))||Number(value)<=0||(type==='percent'&&Number(value)>100)))||parsedSlots.some(item=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.end)||item.endMinutes<=item.startMinutes||!Number.isFinite(item.promotion_value)||item.promotion_value<=0||(item.promotion_type==='percent'&&item.promotion_value>100))||parsedSlots.some((item,index)=>index>0&&item.startMinutes<parsedSlots[index-1].endMinutes))throw new Error('Vui lòng kiểm tra ngày áp dụng và khung giờ. Các khung giờ không được trùng hoặc chồng lấn.')
+      if(!start||!end||end<start)throw new Error('Ngày áp dụng không hợp lệ: vui lòng chọn ngày bắt đầu và ngày kết thúc, ngày kết thúc không được trước ngày bắt đầu.')
+      const invalidSlot=parsedSlots.find(item=>!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.start)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(item.end)||item.endMinutes<=item.startMinutes)
+      if(invalidSlot)throw new Error('Khung giờ '+invalidSlot.start+'–'+invalidSlot.end+' không hợp lệ. Giờ kết thúc phải sau giờ bắt đầu.')
+      const invalidDiscount=parsedSlots.find(item=>!Number.isFinite(item.promotion_value)||item.promotion_value<=0||(item.promotion_type==='percent'&&item.promotion_value>100))
+      if(invalidDiscount||(!parsedSlots.length&&(!Number.isFinite(Number(value))||Number(value)<=0||(type==='percent'&&Number(value)>100))))throw new Error('Mức giảm không hợp lệ. Vui lòng nhập số lớn hơn 0; mức giảm theo phần trăm không được vượt quá 100%.')
+      const overlappingIndex=parsedSlots.findIndex((item,index)=>index>0&&item.startMinutes<parsedSlots[index-1].endMinutes)
+      if(overlappingIndex>0){const previous=parsedSlots[overlappingIndex-1],current=parsedSlots[overlappingIndex];throw new Error('Khung giờ '+current.start+'–'+current.end+' bị trùng/chồng lấn với khung giờ '+previous.start+'–'+previous.end+'. Vui lòng điều chỉnh lại giờ.')}
       const firstSlot=normalizedSlots[0]
       const payload={
         name:name.trim(),description:description.trim()||null,campaign_type:campaignType,promotion_type:firstSlot?.promotion_type??type,promotion_value:firstSlot?.promotion_value??(Number(value)||0),
@@ -443,8 +449,23 @@ function Promotions() {
     setBusy(true);setMessage('')
     try{
       const client=requireSupabase()
+      const {data:existingLinks,error:linksError}=await client.from('promotion_products').select('product_id,promotion_id').in('product_id',picked)
+      if(linksError)throw linksError
+      const conflicts=(existingLinks??[]).filter((link:{product_id:string;promotion_id:string})=>link.promotion_id!==selected.id)
+      if(conflicts.length){
+        const otherIds=[...new Set(conflicts.map((link:{promotion_id:string})=>link.promotion_id))]
+        const {data:otherPrograms,error:programError}=await client.from('promotions').select('id,name,start_at,end_at').in('id',otherIds)
+        if(programError)throw programError
+        const details=conflicts.map((link:{product_id:string;promotion_id:string})=>{
+          const product=products.find(item=>item.id===link.product_id)
+          const program=(otherPrograms??[]).find((item:{id:string})=>item.id===link.promotion_id) as {id:string;name:string;start_at:string;end_at:string}|undefined
+          const period=program?new Date(program.start_at).toLocaleDateString('vi-VN')+' – '+new Date(program.end_at).toLocaleDateString('vi-VN'):'không xác định thời gian'
+          return '• '+(product?.name??link.product_id)+' đang thuộc chương trình "'+(program?.name??'Không rõ tên')+'" ('+period+').'
+        })
+        throw new Error('Không thể thêm '+conflicts.length+' sản phẩm vì đã được gán vào chương trình khuyến mãi khác.\\n'+details.join('\\n')+'\\nTheo cấu hình hiện tại, mỗi sản phẩm chỉ được thuộc một chương trình khuyến mãi.')
+      }
       const {error:e}=await client.from('promotion_products').insert(picked.map(product_id=>({promotion_id:selected.id,product_id})))
-      if(e)throw e
+      if(e){if((e as {code?:string}).code==='23505')throw new Error('Sản phẩm vừa chọn đã được gán vào một chương trình khuyến mãi khác. Hãy tải lại danh sách và kiểm tra chương trình đang áp dụng.');throw e}
       setShowPicker(false);setPicked([]);setProductCounts(old=>({...old,[selected.id]:(old[selected.id]??0)+picked.length}));await openProgram(selected)
     }catch(err){setMessage(err instanceof Error?err.message:'Không thêm được sản phẩm.')}
     finally{setBusy(false)}
